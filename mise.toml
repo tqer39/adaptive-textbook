@@ -1,0 +1,2 @@
+[tasks.lint]
+run = "npm run lint"

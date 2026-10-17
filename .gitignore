@@ -1,0 +1,12 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+.local-state/
+
+.wrangler/
+.dev.vars*
+.env*
+
+# Owner-specific deployment configuration (copy the example before editing).
+wrangler.dev.jsonc

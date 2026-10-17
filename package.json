@@ -1,0 +1,48 @@
+{
+  "name": "adaptive-textbook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src server workers scripts tests && markdownlint-cli2 README.md docs/*.md",
+    "test": "vitest run && node --test tests/server/*.test.mjs",
+    "server:off": "node server/start.mjs",
+    "test:browser": "playwright test",
+    "workers:dev": "npm run workers:local",
+    "workers:build": "node scripts/build-worker.mjs",
+    "test:workers": "node --test tests/workers/*.test.mjs",
+    "workers:local": "npm run build && node scripts/workers-local.mjs"
+  },
+  "dependencies": {
+    "better-auth": "1.7.7",
+    "jose": "^6.2.12",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.55.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.0.0",
+    "markdownlint-cli2": "^0.23.3",
+    "miniflare": "^5.20261006.1-alpha",
+    "prettier": "^3.9.9",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.0.0",
+    "vite": "^7.1.0",
+    "vitest": "^5.0.3",
+    "wrangler": "^4.149.0"
+  },
+  "overrides": {
+    "markdownlint-cli2": {
+      "smol-toml": "1.9.1",
+      "markdownlint": {
+        "micromark-extension-math": {
+          "katex": "0.18.2"
+        }
+      }
+    }
+  }
+}
