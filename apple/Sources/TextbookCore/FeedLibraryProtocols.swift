@@ -21,3 +21,11 @@ public protocol FeedFetching: Sendable {
 }
 
 extension FeedHTTPClient: FeedFetching {}
+
+/// Optional durable refresh history, including successful conditional requests.
+public protocol FeedRefreshRecording: Sendable {
+    func lastSuccessfulRefreshes() async throws -> [String: Date]
+    @discardableResult func recordSuccessfulRefreshIfSubscribed(id: String, at: Date) async throws -> Bool
+}
+
+extension FeedLibraryStore: FeedRefreshRecording {}
