@@ -590,6 +590,7 @@ public actor FeedLibraryStore: ArticleSearching, ArticleSearchPreparing {
         }
         try Self.validateSchema(opened)
         try FeedArticleSearchIndex.preflight(on: opened)
+        try Self.validateRefreshHistory(opened)
         guard try Self.scalarText(opened, "PRAGMA journal_mode=WAL").lowercased() == "wal" else {
             throw FeedError.unavailable
         }
@@ -605,8 +606,62 @@ public actor FeedLibraryStore: ArticleSearching, ArticleSearchPreparing {
                 throw error
             }
         }
+        if try Self.scalarInteger(opened, "SELECT count(*) FROM sqlite_master WHERE name='feed_refresh_success'") == 0 {
+            try Self.exec(opened, "BEGIN IMMEDIATE")
+            do {
+                try Self.validateRefreshHistory(opened)
+                if try Self.scalarInteger(opened, "SELECT count(*) FROM sqlite_master WHERE name='feed_refresh_success'") == 0 {
+                    try Self.exec(opened, Self.refreshHistorySchema)
+                }
+                try Self.exec(opened, "COMMIT")
+            } catch { try? Self.exec(opened, "ROLLBACK"); throw error }
+        }
         try FeedArticleSearchIndex.prepare(on: opened, deferred: deferSearchPreparation)
         searchReader = try FeedLibrarySearchReader(url: url)
+    }
+
+    private static let refreshHistorySchema = "CREATE TABLE feed_refresh_success(feed_id TEXT PRIMARY KEY REFERENCES subscriptions(id),completed_at REAL NOT NULL)"
+
+    private static func validateRefreshHistory(_ db: OpaquePointer) throws {
+        let statement = try prepare(db, "SELECT type,name,sql FROM sqlite_master WHERE lower(name) GLOB 'feed_refresh_*' OR (tbl_name='feed_refresh_success' AND sql IS NOT NULL)")
+        defer { sqlite3_finalize(statement) }
+        while true {
+            switch sqlite3_step(statement) {
+            case SQLITE_DONE: return
+            case SQLITE_ROW:
+                guard try text(statement, 0) == "table", try text(statement, 1) == "feed_refresh_success",
+                      try text(statement, 2) == refreshHistorySchema else { throw FeedError.corrupted }
+            default: throw FeedError.corrupted
+            }
+        }
+    }
+
+    public func lastSuccessfulRefreshes() throws -> [String: Date] {
+        let statement = try Self.prepare(connection.db, "SELECT r.feed_id,r.completed_at FROM feed_refresh_success r JOIN subscriptions s ON s.id=r.feed_id")
+        defer { sqlite3_finalize(statement) }
+        var values: [String: Date] = [:]
+        while true {
+            switch sqlite3_step(statement) {
+            case SQLITE_DONE: return values
+            case SQLITE_ROW:
+                let kind = sqlite3_column_type(statement, 1)
+                let seconds = sqlite3_column_double(statement, 1)
+                guard (kind == SQLITE_FLOAT || kind == SQLITE_INTEGER), seconds.isFinite else { throw FeedError.corrupted }
+                values[try Self.text(statement, 0)] = Date(timeIntervalSinceReferenceDate: seconds)
+            default: throw FeedError.corrupted
+            }
+        }
+    }
+
+    @discardableResult
+    public func recordSuccessfulRefreshIfSubscribed(id: String, at date: Date) throws -> Bool {
+        guard date.timeIntervalSinceReferenceDate.isFinite else { throw FeedError.corrupted }
+        let statement = try Self.prepare(connection.db, "INSERT INTO feed_refresh_success(feed_id,completed_at) SELECT id,? FROM subscriptions WHERE id=? ON CONFLICT(feed_id) DO UPDATE SET completed_at=max(completed_at,excluded.completed_at)")
+        defer { sqlite3_finalize(statement) }
+        try Self.bind(date.timeIntervalSinceReferenceDate, 1, statement)
+        try Self.bind(id, 2, statement)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw FeedError.unavailable }
+        return sqlite3_changes(connection.db) > 0
     }
 
     public func searchPreparationStatus() throws -> ArticleSearchPreparation {
@@ -643,6 +698,7 @@ public actor FeedLibraryStore: ArticleSearching, ArticleSearchPreparing {
             for sql in [
                 "DELETE FROM translations WHERE article_id IN (SELECT a.id FROM articles a LEFT JOIN bookmarks b ON b.article_id=a.id WHERE a.feed_id=? AND b.article_id IS NULL)",
                 "DELETE FROM articles WHERE feed_id=? AND NOT EXISTS (SELECT 1 FROM bookmarks b WHERE b.article_id=articles.id)",
+                "DELETE FROM feed_refresh_success WHERE feed_id=?",
                 "DELETE FROM subscriptions WHERE id=?",
             ] {
                 let statement = try Self.prepare(db, sql)

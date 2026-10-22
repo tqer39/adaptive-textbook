@@ -27,6 +27,7 @@ struct FeedReaderView: View {
         case feed(String)
     }
 
+    @State private var showsFeedStatus = false
     @StateObject private var model: FeedReaderModel
     @Environment(\.scenePhase) private var scenePhase
 
@@ -193,12 +194,19 @@ struct FeedReaderView: View {
                 .disabled(model.isRefreshing)
                 .accessibilityIdentifier("refresh-feeds")
             }
-            HStack {
-                Button("Apple Developer ニュースを追加") { Task { await model.addStarterFeed() } }
-                    .accessibilityIdentifier("add-apple-feed")
-                if model.isRefreshing { ProgressView().controlSize(.small) }
-                Text(model.message).font(.caption).foregroundStyle(.secondary)
+            Button("Apple Developer ニュースを追加") { Task { await model.addStarterFeed() } }
+                .accessibilityIdentifier("add-apple-feed")
+            if model.isRefreshing {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text(model.refreshProgress).font(.caption)
+                    Spacer()
+                    Button("更新を中止") { model.cancelRefresh() }
+                        .disabled(model.isStoppingRefresh)
+                        .accessibilityIdentifier("cancel-feed-refresh")
+                }
             }
+            Text(model.message).font(.caption).foregroundStyle(.secondary)
             if let preparationMessage = model.preparationMessage {
                 HStack {
                     if model.preparationFailure == nil { ProgressView().controlSize(.small) }
@@ -215,11 +223,47 @@ struct FeedReaderView: View {
                     .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                     .accessibilityIdentifier("article-search-status")
             }
-            ForEach(model.failureByFeed.keys.sorted(), id: \.self) { feedID in
-                if let failure = model.failureByFeed[feedID] {
-                    Text(failure).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+            DisclosureGroup("フィードの状況", isExpanded: $showsFeedStatus) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if let failure = model.refreshHistoryFailure {
+                            Text(failure).font(.caption).foregroundStyle(.red)
+                        }
+                        ForEach(model.subscriptions) { subscription in
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(subscription.title ?? subscription.url.host ?? subscription.url.absoluteString)
+                                        .font(.subheadline).lineLimit(2)
+                                    Spacer()
+                                    Text(model.refreshPhases[subscription.id]?.rawValue ?? "未更新")
+                                        .font(.caption)
+                                }
+                                Text(subscription.url.absoluteString).font(.caption).foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                                if let date = model.lastSuccessfulRefreshes[subscription.id] {
+                                    Text("最終成功: " + date.formatted(date: .abbreviated, time: .standard))
+                                        .font(.caption).foregroundStyle(.secondary)
+                                } else {
+                                    Text(model.refreshHistoryFailure == nil ? "最終成功: 記録なし" : "最終成功: 不明")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                if let failure = model.failureByFeed[subscription.id] {
+                                    Text(failure).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+                                }
+                                Button("このフィードを再試行") {
+                                    Task { await model.refresh(ids: [subscription.id]) }
+                                }
+                                .disabled(model.isRefreshing)
+                                .accessibilityLabel((subscription.title ?? subscription.url.host ?? "フィード") + "を再試行")
+                                .accessibilityIdentifier("retry-feed-" + subscription.id)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .frame(maxHeight: 180)
             }
+            .accessibilityIdentifier("feed-refresh-status")
         }
         .padding(10)
         .background(.bar)

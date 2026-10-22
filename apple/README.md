@@ -33,6 +33,14 @@ Updates use ETag / Last-Modified conditions, and articles retain their IDs when 
 Displayed content is the article or summary supplied by the feed; the app does not fetch full articles from the original website.
 Collection runs at launch, on return to the foreground, and through manual actions. A continuously polling service is not implemented.
 
+Updates run with at most three fetches per window and one per configured feed host (case-insensitive, shared across ports).
+Redirects still share the three-request bound but may converge on the same destination host.
+Completed feeds are saved and displayed without waiting for slower feeds. “フィードの状況” shows each feed's progress,
+last successful update (including HTTP 304, retained across restarts), failure, and individual retry.
+Retries become available after the current refresh finishes or stops. “更新を中止” cancels active requests and clears queued work;
+requests that ignore cancellation must finish before a new refresh can start, and their late responses are discarded.
+A save already submitted may finish; committed articles remain saved. Removing a subscription also clears its success history.
+
 Originals, bookmarks, and Japanese translations are stored on this device.
 The list combines the latest 2,000 articles with saved bookmarks, up to 2,000 bookmarks.
 The search field operates independently of that list limit and searches all articles stored in SQLite.

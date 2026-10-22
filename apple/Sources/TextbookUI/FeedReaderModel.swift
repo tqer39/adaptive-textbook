@@ -1,6 +1,23 @@
 import SwiftUI
 import TextbookCore
 
+enum FeedRefreshPhase: String, Sendable {
+    case queued = "待機中"
+    case fetching = "取得中"
+    case updated = "保存完了"
+    case unchanged = "変更なし"
+    case failed = "更新失敗"
+    case cancelled = "中止"
+
+    var isPending: Bool { self == .queued || self == .fetching }
+}
+
+private struct FeedRefreshCompletion: Sendable {
+    let subscription: FeedSubscription
+    let epoch: Int
+    let result: Result<FeedFetchResult, Error>
+}
+
 @MainActor
 final class FeedReaderModel: ObservableObject {
     static let starterURL = URL(string: "https://developer.apple.com/news/rss/news.rss")!
@@ -23,6 +40,10 @@ final class FeedReaderModel: ObservableObject {
     @Published var feedURL = ""
     @Published var isLoading = true
     @Published var isRefreshing = false
+    @Published private(set) var isStoppingRefresh = false
+    @Published private(set) var refreshPhases: [String: FeedRefreshPhase] = [:]
+    @Published private(set) var lastSuccessfulRefreshes: [String: Date] = [:]
+    @Published private(set) var refreshHistoryFailure: String?
     @Published var bookmarkBusy: Set<String> = []
     @Published var failureByFeed: [String: String] = [:]
     @Published var message = "保存済みの記事を読み込んでいます。"
@@ -38,6 +59,7 @@ final class FeedReaderModel: ObservableObject {
     private var pendingRefreshIDs: Set<String> = []
     private var activeRefreshAll = false
     private var activeRequestEpochs: [String: Int] = [:]
+    private var refreshTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
     private var preparationTask: Task<Void, Never>?
     private var isStartingPreparation = false
@@ -71,7 +93,7 @@ final class FeedReaderModel: ObservableObject {
         return "検索を準備中（\(processed)件確認済み）。記事の閲覧・保存はできます。"
     }
 
-    deinit { preparationTask?.cancel() }
+    deinit { preparationTask?.cancel(); refreshTask?.cancel() }
 
     var visibleArticles: [FeedArticle] {
         if showsSearchResults { return searchResults.map(\.article) }
@@ -217,6 +239,8 @@ final class FeedReaderModel: ObservableObject {
                 suppressSearchContextInvalidation = false
             }
             failureByFeed[subscription.id] = nil
+            refreshPhases[subscription.id] = nil
+            lastSuccessfulRefreshes[subscription.id] = nil
             // Another scene may already have removed the subscription, leaving
             // no newly deleted IDs. The retained IDs still describe every
             // target-feed snapshot that survived the transaction.
@@ -259,9 +283,27 @@ final class FeedReaderModel: ObservableObject {
         }
     }
 
+    var refreshProgress: String {
+        let phases = activeRequestEpochs.keys.compactMap { refreshPhases[$0] }
+        let completed = phases.filter { !$0.isPending }.count
+        return isStoppingRefresh ? "通信の中止を待っています。" : "更新 \(completed)/\(phases.count)件完了"
+    }
+
+    func cancelRefresh() {
+        guard isRefreshing else { return }
+        isStoppingRefresh = true
+        pendingRefreshAll = false
+        pendingRefreshIDs.removeAll()
+        refreshTask?.cancel()
+        for id in refreshPhases.keys where refreshPhases[id]?.isPending == true {
+            refreshPhases[id] = .cancelled
+        }
+    }
+
     func refresh(ids: Set<String>? = nil) async {
-        guard let store else { return }
+        guard let store, !Task.isCancelled else { return }
         if isRefreshing {
+            guard !isStoppingRefresh else { return }
             if let ids, !pendingRefreshAll {
                 let changedOrMissing = ids.filter {
                     activeRequestEpochs[$0] != epochs[$0, default: 0]
@@ -274,13 +316,35 @@ final class FeedReaderModel: ObservableObject {
             return
         }
         isRefreshing = true
-        defer { isRefreshing = false }
+        isStoppingRefresh = false
+        let worker = Task { await self.runRefresh(ids: ids, store: store) }
+        refreshTask = worker
+        await withTaskCancellationHandler {
+            await worker.value
+        } onCancel: {
+            worker.cancel()
+        }
+    }
 
+    private func runRefresh(ids: Set<String>?, store: any FeedLibraryStoring) async {
+        defer {
+            // Finish ownership in the worker itself. Its awaiting caller may
+            // resume after a new refresh has already started, so that caller
+            // must not clear the new worker's state.
+            refreshTask = nil
+            activeRefreshAll = false
+            activeRequestEpochs.removeAll()
+            pendingRefreshAll = false
+            pendingRefreshIDs.removeAll()
+            isStoppingRefresh = false
+            isRefreshing = false
+        }
         var requestedIDs = ids
-        while true {
+        while !Task.isCancelled {
             activeRefreshAll = requestedIDs == nil
             activeRequestEpochs.removeAll()
             await performRefresh(ids: requestedIDs, store: store)
+            guard !Task.isCancelled else { break }
             if pendingRefreshAll {
                 pendingRefreshAll = false
                 pendingRefreshIDs.removeAll()
@@ -292,19 +356,28 @@ final class FeedReaderModel: ObservableObject {
                 break
             }
         }
-        activeRefreshAll = false
-        activeRequestEpochs.removeAll()
+        if Task.isCancelled {
+            for id in refreshPhases.keys where refreshPhases[id]?.isPending == true {
+                refreshPhases[id] = .cancelled
+            }
+            message = "更新を中止しました。保存済みの記事は保持しています。"
+        }
+    }
+
+    private func acceptsRefresh(_ id: String, epoch: Int) -> Bool {
+        !Task.isCancelled && !isStoppingRefresh && epochs[id, default: 0] == epoch
+            && subscriptions.contains(where: { $0.id == id })
     }
 
     private func performRefresh(ids: Set<String>?, store: any FeedLibraryStoring) async {
         do {
-            // Foreground refreshes must first observe subscriptions and cached
-            // articles changed by another scene or a previous app process.
+            // Observe other scenes before starting requests.
             try await reloadCache()
         } catch {
             message = "保存済み記事の再読み込みに失敗しました: \(error.localizedDescription)"
             return
         }
+        guard !Task.isCancelled else { return }
         defer { refreshSearchPreservingResults() }
         let targets = subscriptions.filter { ids == nil || ids!.contains($0.id) }
         activeRequestEpochs = Dictionary(uniqueKeysWithValues: targets.map {
@@ -314,43 +387,90 @@ final class FeedReaderModel: ObservableObject {
             message = "購読中のフィードはありません。"
             return
         }
-
-        var updatedCount = 0
-        var unchangedCount = 0
-        for subscription in targets {
-            let epoch = epochs[subscription.id, default: 0]
-            do {
-                let result = try await fetcher.fetch(subscription)
-                try Task.checkCancellation()
-                guard epochs[subscription.id, default: 0] == epoch,
-                      subscriptions.contains(where: { $0.id == subscription.id }) else { continue }
-                switch result {
-                case .notModified:
-                    unchangedCount += 1
-                    failureByFeed[subscription.id] = nil
-                case .updated(let feed, let eTag, let lastModified):
-                    invalidateCache()
-                    if try await store.saveFetchedFeedIfSubscribed(feed, eTag: eTag, lastModified: lastModified) {
-                        invalidateCache()
-                        updatedCount += 1
-                        failureByFeed[subscription.id] = nil
+        for subscription in targets { refreshPhases[subscription.id] = .queued }
+        message = "フィードを更新しています。完了した内容から表示します。"
+        let fetcher = self.fetcher
+        await withTaskGroup(of: FeedRefreshCompletion.self) { group in
+            var waiting = targets
+            var activeHosts: Set<String> = []
+            // At most three requests per refresh, one per configured URL host.
+            // Queued subscriptions have no tasks until a slot becomes available.
+            while true {
+                while !Task.isCancelled, activeHosts.count < 3,
+                      let index = waiting.firstIndex(where: { !activeHosts.contains($0.url.host!.lowercased()) }) {
+                    let subscription = waiting.remove(at: index)
+                    let epoch = activeRequestEpochs[subscription.id]!
+                    guard acceptsRefresh(subscription.id, epoch: epoch) else { continue }
+                    activeHosts.insert(subscription.url.host!.lowercased())
+                    refreshPhases[subscription.id] = .fetching
+                    group.addTask {
+                        let result: Result<FeedFetchResult, Error>
+                        do {
+                            try Task.checkCancellation()
+                            result = .success(try await fetcher.fetch(subscription))
+                        } catch { result = .failure(error) }
+                        return FeedRefreshCompletion(subscription: subscription, epoch: epoch, result: result)
                     }
                 }
-            } catch is CancellationError {
-                continue
-            } catch {
-                guard epochs[subscription.id, default: 0] == epoch,
-                      subscriptions.contains(where: { $0.id == subscription.id }) else { continue }
-                failureByFeed[subscription.id] = "\(subscription.title ?? subscription.url.host ?? subscription.url.absoluteString): \(error.localizedDescription) 「再読み込み」で再試行できます。"
+                guard let completion = await group.next() else { break }
+                activeHosts.remove(completion.subscription.url.host!.lowercased())
+                if Task.isCancelled { group.cancelAll(); continue }
+                await acceptRefreshCompletion(completion, store: store)
             }
         }
-        do { try await reloadCache() } catch { message = "保存済み記事の再読み込みに失敗しました: \(error.localizedDescription)"; return }
-        if !failureByFeed.isEmpty {
-            message = "一部のフィードを更新できませんでした。保存済みの記事は保持しています。"
-        } else if updatedCount > 0 {
-            message = "\(updatedCount)件のフィードから新しい内容を保存しました。"
-        } else if unchangedCount > 0 {
+        guard !Task.isCancelled else { return }
+        do { try await reloadCache() }
+        catch { message = "保存済み記事の再読み込みに失敗しました: \(error.localizedDescription)"; return }
+        let phases = targets.compactMap { refreshPhases[$0.id] }
+        if phases.contains(.failed) {
+            message = "一部のフィードを更新できませんでした。フィードの状況から再試行できます。"
+        } else if phases.contains(.updated) {
+            message = "\(phases.filter { $0 == .updated }.count)件のフィードから内容を保存しました。"
+        } else if phases.contains(.unchanged) {
             message = "フィードに変更はありませんでした。"
+        }
+    }
+
+    private func acceptRefreshCompletion(_ completion: FeedRefreshCompletion, store: any FeedLibraryStoring) async {
+        let id = completion.subscription.id
+        guard acceptsRefresh(id, epoch: completion.epoch) else { return }
+        var contentSaved = false
+        do {
+            let phase: FeedRefreshPhase
+            switch try completion.result.get() {
+            case .notModified:
+                phase = .unchanged
+            case .updated(let feed, let eTag, let lastModified):
+                invalidateCache()
+                guard try await store.saveFetchedFeedIfSubscribed(feed, eTag: eTag, lastModified: lastModified) else {
+                    try await reloadCache()
+                    return
+                }
+                invalidateCache()
+                contentSaved = true
+                phase = .updated
+            }
+            guard acceptsRefresh(id, epoch: completion.epoch) else { return }
+            if let recorder = store as? any FeedRefreshRecording {
+                guard try await recorder.recordSuccessfulRefreshIfSubscribed(id: id, at: Date()) else {
+                    try await reloadCache()
+                    return
+                }
+            }
+            guard acceptsRefresh(id, epoch: completion.epoch) else { return }
+            refreshPhases[id] = phase
+            failureByFeed[id] = nil
+            try await reloadCache()
+            refreshSearchPreservingResults()
+        } catch {
+            guard acceptsRefresh(id, epoch: completion.epoch) else { return }
+            if error is CancellationError {
+                refreshPhases[id] = .cancelled
+                return
+            }
+            refreshPhases[id] = .failed
+            failureByFeed[id] = (contentSaved ? "記事は保存しましたが、更新情報の保存・再読み込みに失敗しました: " : "更新できませんでした: ") + error.localizedDescription
+            if contentSaved { try? await reloadCache() }
         }
     }
 
@@ -621,9 +741,20 @@ final class FeedReaderModel: ObservableObject {
             guard generation == cacheGeneration else { return }
             throw error
         }
+        var history: [String: Date] = [:]
+        var historyFailure: String?
+        if let recorder = store as? any FeedRefreshRecording {
+            do { history = try await recorder.lastSuccessfulRefreshes() }
+            catch { historyFailure = "最終成功日時を読み込めません: " + error.localizedDescription }
+        }
         guard generation == cacheGeneration else { return }
+        lastSuccessfulRefreshes = history
+        refreshHistoryFailure = historyFailure
         let (newSubscriptions, newArticles, bookmarks) = values
         subscriptions = newSubscriptions
+        let currentIDs = Set(newSubscriptions.map(\.id))
+        refreshPhases = refreshPhases.filter { currentIDs.contains($0.key) }
+        failureByFeed = failureByFeed.filter { currentIDs.contains($0.key) }
         // The recent-article limit must not hide older saved bookmarks. Keep
         // the recent query's snapshot when both queries contain the same id.
         var snapshots = Dictionary(uniqueKeysWithValues: newArticles.map { ($0.id, $0) })
