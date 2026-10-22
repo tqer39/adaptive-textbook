@@ -217,6 +217,15 @@ including empty and error states and after opening article details. iOS explicit
 navigation-bar drawer placement; macOS keeps automatic placement. This checks the filter-navigation issue
 found during runtime QA; a passing build alone does not prove this behavior.
 
+On macOS, changing the sidebar filter or search query creates a fresh article list and returns it to the top.
+The model and search field remain outside that identity; refresh, management open/close, and paging within the same filter/query retain the list.
+This avoids reusing AppKit row-height state across different filters/queries (Issue #23).
+For the native regression, use a dedicated library with at least 150 mixed-height article rows and a saved bookmark with Japanese text.
+Repeat Bookmarks → select the saved article → All at least three times; inspect unfiltered process logs for NSTableView reentrancy warnings.
+Also verify feed-to-feed switches, keyboard row selection, search text/results, saved Japanese, and management open/close.
+After a short search, enter a query with more than 50 hits, scroll to the final row, and load the next page; the first page must stay reachable.
+A Swift unit-test pass does not establish this AppKit runtime behavior.
+
 ## Storage and search engine selection
 
 SQLite is the current implementation choice. The requirement is correct searches in under 100 ms on the target devices and workloads; keeping SQLite is not a requirement.
