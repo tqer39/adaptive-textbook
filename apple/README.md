@@ -27,6 +27,8 @@ The app does not execute arbitrary HTML / JavaScript or model-generated code.
 
 ## Information collection and translation
 
+Open “フィードを管理” (Manage feeds) to add URLs, inspect feed status, retry, or unsubscribe.
+On Mac, Command-Shift-M opens management and Escape closes it. Opening or closing management preserves search/filter selection.
 The button for adding Apple Developer News subscribes to the actual official RSS feed.
 For another feed, enter its HTTPS URL. URLs with embedded credentials are rejected.
 Updates use ETag / Last-Modified conditions, and articles retain their IDs when saved.
@@ -35,8 +37,11 @@ Collection runs at launch, on return to the foreground, and through manual actio
 
 Updates run with at most three fetches per window and one per configured feed host (case-insensitive, shared across ports).
 Redirects still share the three-request bound but may converge on the same destination host.
-Completed feeds are saved and displayed without waiting for slower feeds. “フィードの状況” shows each feed's progress,
+Completed feeds are saved and displayed without waiting for slower feeds. The management screen shows each feed's progress,
 last successful update (including HTTP 304, retained across restarts), failure, and individual retry.
+The reading screen keeps concise status while management holds detailed failures, distinguishing offline, fetch, and storage/read errors.
+A failed initial storage read can be retried without resetting data. Unsubscription requires confirmation explaining that bookmarked
+articles and their saved Japanese translations remain while other articles are deleted.
 Retries become available after the current refresh finishes or stops. “更新を中止” cancels active requests and clears queued work;
 requests that ignore cancellation must finish before a new refresh can start, and their late responses are discarded.
 A save already submitted may finish; committed articles remain saved. Removing a subscription also clears its success history.

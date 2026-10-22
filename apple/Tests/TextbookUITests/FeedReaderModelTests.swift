@@ -5,6 +5,65 @@ import TextbookCore
 
 @MainActor
 final class FeedReaderModelTests: XCTestCase {
+    func testStorageInitializationCanRetryWithoutLosingSavedContent() async throws {
+        let fixture = try Fixture()
+        let store = MemoryFeedStore(subscription: fixture.subscription, article: fixture.oldArticle)
+        await store.setSubscriptionReadFailure(true)
+        let model = FeedReaderModel(store: store, fetcher: UnchangedFetcher())
+        await model.initialize()
+        XCTAssertNotNil(model.libraryFailure)
+        XCTAssertFalse(model.isLoading)
+        XCTAssertTrue(model.articles.isEmpty)
+        await store.setSubscriptionReadFailure(false)
+        await model.initialize()
+        XCTAssertNil(model.libraryFailure)
+        XCTAssertEqual(model.articles, [fixture.oldArticle])
+        XCTAssertEqual(model.subscriptions, [fixture.subscription])
+    }
+
+    func testOfflineAndStorageFailuresAreDistinctAndRetryClearsOnlyResolvedFailure() async throws {
+        let fixture = try Fixture()
+        let store = MemoryFeedStore(subscription: fixture.subscription, article: fixture.oldArticle)
+        let second = try await store.addSubscription(url: URL(string: "https://other.example/feed")!, title: "Other")
+        let fetcher = ManagementFetcher(feed: fixture.updatedFeed, offlineID: fixture.subscription.id)
+        let model = FeedReaderModel(store: store, fetcher: fetcher)
+        await model.initialize()
+        XCTAssertEqual(model.failureCategories[fixture.subscription.id], .offline)
+        XCTAssertEqual(model.refreshPhases[second.id], .unchanged)
+        XCTAssertEqual(model.failedFeedCount, 1)
+        XCTAssertTrue(model.feedFailureSummary?.contains("オフライン") == true)
+        XCTAssertEqual(model.articles, [fixture.oldArticle])
+
+        await fetcher.allowNetwork()
+        await store.setFeedSaveFailure(true)
+        await model.refresh(ids: [fixture.subscription.id])
+        XCTAssertEqual(model.failureCategories[fixture.subscription.id], .storage)
+        XCTAssertEqual(model.articles, [fixture.oldArticle])
+        XCTAssertFalse(model.feedFailureSummary?.contains("オフライン") == true)
+        XCTAssertTrue(model.failureByFeed[fixture.subscription.id]?.contains("保存・読込失敗") == true)
+
+        await store.setFeedSaveFailure(false)
+        await model.refresh(ids: [fixture.subscription.id])
+        XCTAssertTrue(model.failureCategories.isEmpty)
+        XCTAssertNil(model.feedFailureSummary)
+        XCTAssertEqual(model.articles.map(\.title), ["After"])
+    }
+
+    func testUnsubscribeClearsFailureSummaryButRetainsBookmarkedArticle() async throws {
+        let fixture = try Fixture()
+        let store = MemoryFeedStore(subscription: fixture.subscription, article: fixture.oldArticle)
+        _ = try await store.setBookmarked(articleID: fixture.oldArticle.id, bookmarked: true)
+        let model = FeedReaderModel(store: store, fetcher: FailingFetcher())
+        await model.initialize()
+        XCTAssertEqual(model.failureCategories[fixture.subscription.id], .fetch)
+        XCTAssertEqual(model.failedFeedCount, 1)
+        await model.remove(fixture.subscription)
+        XCTAssertTrue(model.failureCategories.isEmpty)
+        XCTAssertNil(model.feedFailureSummary)
+        XCTAssertEqual(model.articles, [fixture.oldArticle])
+        XCTAssertEqual(model.bookmarkState(for: fixture.oldArticle), true)
+    }
+
     func testPreparingSearchKeepsCacheSelectionAndBookmarkSavingAvailable() async throws {
         let fixture = try Fixture()
         let store = MemoryFeedStore(subscription: fixture.subscription, article: fixture.oldArticle)
@@ -294,7 +353,7 @@ final class FeedReaderModelTests: XCTestCase {
         await loading.value
 
         XCTAssertTrue(model.subscriptions.isEmpty)
-        let storedSubscriptions = await store.subscriptions()
+        let storedSubscriptions = try await store.subscriptions()
         XCTAssertTrue(storedSubscriptions.isEmpty)
     }
 
@@ -534,6 +593,18 @@ private struct Fixture {
     }
 }
 
+private actor ManagementFetcher: FeedFetching {
+    let feed: ParsedFeed
+    var offlineID: String?
+    init(feed: ParsedFeed, offlineID: String) { self.feed = feed; self.offlineID = offlineID }
+    func allowNetwork() { offlineID = nil }
+    func fetch(_ subscription: FeedSubscription) async throws -> FeedFetchResult {
+        if subscription.id == offlineID { throw URLError(.notConnectedToInternet) }
+        if subscription.id == feed.id { return .updated(feed, eTag: nil, lastModified: nil) }
+        return .notModified
+    }
+}
+
 private struct FailingFetcher: FeedFetching {
     func fetch(_ subscription: FeedSubscription) async throws -> FeedFetchResult { throw FeedError.unavailable }
 }
@@ -669,6 +740,11 @@ private actor MemoryFeedStore: FeedLibraryStoring, ArticleSearchPreparing {
         preparationGate = nil
     }
 
+    private var subscriptionReadFails = false
+    private var feedSaveFails = false
+    func setSubscriptionReadFailure(_ value: Bool) { subscriptionReadFails = value }
+    func setFeedSaveFailure(_ value: Bool) { feedSaveFails = value }
+
     private var savedSubscriptions: [FeedSubscription]
     private var savedArticles: [FeedArticle]
     private var bookmarks: Set<String> = []
@@ -684,7 +760,10 @@ private actor MemoryFeedStore: FeedLibraryStoring, ArticleSearchPreparing {
         savedArticles = [article]
     }
 
-    func subscriptions() -> [FeedSubscription] { savedSubscriptions }
+    func subscriptions() throws -> [FeedSubscription] {
+        if subscriptionReadFails { throw FeedError.unavailable }
+        return savedSubscriptions
+    }
     func addSubscription(url: URL, title: String?) throws -> FeedSubscription {
         let value = try FeedSubscription(url: url, title: title)
         if !savedSubscriptions.contains(where: { $0.id == value.id }) { savedSubscriptions.append(value) }
@@ -699,7 +778,8 @@ private actor MemoryFeedStore: FeedLibraryStoring, ArticleSearchPreparing {
             retainedArticleIDs: retained, deletedArticleIDs: affected.subtracting(retained)
         )
     }
-    func saveFetchedFeedIfSubscribed(_ feed: ParsedFeed, eTag: String?, lastModified: String?) -> Bool {
+    func saveFetchedFeedIfSubscribed(_ feed: ParsedFeed, eTag: String?, lastModified: String?) throws -> Bool {
+        if feedSaveFails { throw FeedError.unavailable }
         guard savedSubscriptions.contains(where: { $0.id == feed.id }) else { return false }
         savedArticles.removeAll { $0.feedID == feed.id }
         savedArticles.append(contentsOf: feed.articles)

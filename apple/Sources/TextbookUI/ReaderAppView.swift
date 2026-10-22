@@ -27,7 +27,7 @@ struct FeedReaderView: View {
         case feed(String)
     }
 
-    @State private var showsFeedStatus = false
+    @State private var showsFeedManagement = false
     @StateObject private var model: FeedReaderModel
     @Environment(\.scenePhase) private var scenePhase
 
@@ -55,19 +55,25 @@ struct FeedReaderView: View {
                                 .lineLimit(2)
                         }
                         .contextMenu {
-                            Button("購読を削除", role: .destructive) {
-                                Task { await model.remove(subscription) }
-                            }
+                            Button("フィードを管理") { showsFeedManagement = true }
                         }
                         .accessibilityIdentifier("feed-" + subscription.id)
                     }
                 }
             }
             .navigationTitle("情報収集")
+            .toolbar { managementButton }
         } content: {
             Group {
                 if model.isLoading {
                     ProgressView("保存済み記事を読み込み中")
+                } else if let failure = model.libraryFailure {
+                    VStack {
+                        ContentUnavailableView("保存領域を読み込めません", systemImage: "externaldrive.badge.exclamationmark",
+                                               description: Text(failure))
+                        Button("保存領域を再読み込み") { Task { await model.initialize() } }
+                            .accessibilityIdentifier("retry-library")
+                    }
                 } else if model.showsSearchResults && model.isSearching && model.searchResults.isEmpty {
                     ProgressView("すべての保存済み記事を検索中")
                         .accessibilityIdentifier("article-search-loading")
@@ -76,8 +82,9 @@ struct FeedReaderView: View {
                         ContentUnavailableView(
                             searchEmptyTitle,
                             systemImage: model.showsSearchResults ? "magnifyingglass" : (model.showsBookmarksOnly ? "bookmark" : "newspaper"),
-                            description: Text(model.showsSearchResults ? (model.searchMessage ?? "検索条件を変えてお試しください。") : "フィードを追加して再読み込みしてください。")
+                            description: Text(model.showsSearchResults ? (model.searchMessage ?? "検索条件を変えてお試しください。") : (model.showsBookmarksOnly ? "記事を開いてブックマークすると、ここに表示されます。" : "管理画面からフィードを追加するか、更新状況を確認してください。"))
                         )
+                        if !model.showsSearchResults { managementButton }
                         if model.showsSearchResults && (model.searchFailed || model.searchPreparing) {
                             Button("検索を再試行") { model.retrySearch() }
                                 .accessibilityIdentifier("article-search-retry")
@@ -128,7 +135,7 @@ struct FeedReaderView: View {
                     }
                 }
             }
-            .navigationTitle(model.showsBookmarksOnly ? "ブックマーク" : "記事")
+            .navigationTitle(filterTitle)
             .searchable(text: $model.searchText, placement: searchFieldPlacement, prompt: model.isPreparingSearch ? "検索を準備中" : "原文・保存済み日本語訳を検索")
             .accessibilityIdentifier("article-search-field")
             .safeAreaInset(edge: .top) { controls }
@@ -140,6 +147,7 @@ struct FeedReaderView: View {
                 ContentUnavailableView("記事を選択", systemImage: "doc.text")
             }
         }
+        .sheet(isPresented: $showsFeedManagement) { FeedManagementView(model: model) }
         .task { await model.initialize() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await model.refresh() } }
@@ -178,38 +186,40 @@ struct FeedReaderView: View {
         #endif
     }
 
+    private var managementButton: some View {
+        Button { showsFeedManagement = true } label: {
+            Label("フィードを管理", systemImage: "list.bullet.rectangle")
+        }
+        .accessibilityIdentifier("manage-feeds")
+        .keyboardShortcut("m", modifiers: [.command, .shift])
+    }
+
+    private var filterTitle: String {
+        if model.showsBookmarksOnly { return "ブックマーク" }
+        if let id = model.selectedFeedID, let feed = model.subscriptions.first(where: { $0.id == id }) {
+            return feed.title ?? feed.url.host ?? "フィード"
+        }
+        return "すべての記事"
+    }
+
     private var controls: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                TextField("HTTPS フィード URL", text: $model.feedURL)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("feed-url")
-                    .onSubmit { Task { await model.addEnteredFeed() } }
-                Button("追加") { Task { await model.addEnteredFeed() } }
-                    .disabled(model.feedURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityIdentifier("add-feed")
-                Button { Task { await model.refresh() } } label: {
-                    Label("再読み込み", systemImage: "arrow.clockwise")
-                }
-                .disabled(model.isRefreshing)
-                .accessibilityIdentifier("refresh-feeds")
+            Text(filterTitle).font(.headline)
+                .accessibilityIdentifier("article-filter")
+            ViewThatFits(in: .horizontal) {
+                HStack { managementButton; Spacer(); refreshButton }
+                VStack(alignment: .leading) { managementButton; refreshButton }
             }
-            Button("Apple Developer ニュースを追加") { Task { await model.addStarterFeed() } }
-                .accessibilityIdentifier("add-apple-feed")
             if model.isRefreshing {
-                HStack {
-                    ProgressView().controlSize(.small)
-                    Text(model.refreshProgress).font(.caption)
-                    Spacer()
-                    Button("更新を中止") { model.cancelRefresh() }
-                        .disabled(model.isStoppingRefresh)
-                        .accessibilityIdentifier("cancel-feed-refresh")
-                }
+                RefreshProgressView(model: model)
             }
-            Text(model.message).font(.caption).foregroundStyle(.secondary)
+            Text(model.message).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            if !model.isRefreshing, let summary = model.feedFailureSummary {
+                Text(summary).font(.caption).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("feed-failure-summary")
+            }
             if let preparationMessage = model.preparationMessage {
-                HStack {
-                    if model.preparationFailure == nil { ProgressView().controlSize(.small) }
+                VStack(alignment: .leading) {
                     Text(preparationMessage).font(.caption).foregroundStyle(.secondary)
                     if model.preparationFailure != nil {
                         Button("検索の準備を再試行") { Task { await model.startSearchPreparation() } }
@@ -223,50 +233,17 @@ struct FeedReaderView: View {
                     .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                     .accessibilityIdentifier("article-search-status")
             }
-            DisclosureGroup("フィードの状況", isExpanded: $showsFeedStatus) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if let failure = model.refreshHistoryFailure {
-                            Text(failure).font(.caption).foregroundStyle(.red)
-                        }
-                        ForEach(model.subscriptions) { subscription in
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text(subscription.title ?? subscription.url.host ?? subscription.url.absoluteString)
-                                        .font(.subheadline).lineLimit(2)
-                                    Spacer()
-                                    Text(model.refreshPhases[subscription.id]?.rawValue ?? "未更新")
-                                        .font(.caption)
-                                }
-                                Text(subscription.url.absoluteString).font(.caption).foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                                if let date = model.lastSuccessfulRefreshes[subscription.id] {
-                                    Text("最終成功: " + date.formatted(date: .abbreviated, time: .standard))
-                                        .font(.caption).foregroundStyle(.secondary)
-                                } else {
-                                    Text(model.refreshHistoryFailure == nil ? "最終成功: 記録なし" : "最終成功: 不明")
-                                        .font(.caption).foregroundStyle(.secondary)
-                                }
-                                if let failure = model.failureByFeed[subscription.id] {
-                                    Text(failure).font(.caption).foregroundStyle(.red).textSelection(.enabled)
-                                }
-                                Button("このフィードを再試行") {
-                                    Task { await model.refresh(ids: [subscription.id]) }
-                                }
-                                .disabled(model.isRefreshing)
-                                .accessibilityLabel((subscription.title ?? subscription.url.host ?? "フィード") + "を再試行")
-                                .accessibilityIdentifier("retry-feed-" + subscription.id)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxHeight: 180)
-            }
-            .accessibilityIdentifier("feed-refresh-status")
         }
         .padding(10)
         .background(.bar)
+    }
+
+    private var refreshButton: some View {
+        Button { Task { await model.refresh() } } label: {
+            Label("再読み込み", systemImage: "arrow.clockwise")
+        }
+        .disabled(model.isRefreshing || model.isLoading || model.libraryFailure != nil)
+        .accessibilityIdentifier("refresh-feeds")
     }
 
     private func sourceName(for article: FeedArticle) -> String {
@@ -282,6 +259,148 @@ struct FeedReaderView: View {
             return "一致する記事はありません"
         }
         return model.showsBookmarksOnly ? "ブックマークはありません" : "記事はありません"
+    }
+}
+
+private struct RefreshProgressView: View {
+    @ObservedObject var model: FeedReaderModel
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack { progress; Spacer(); cancel }
+            VStack(alignment: .leading) { progress; cancel }
+        }
+    }
+
+    private var progress: some View {
+        HStack { ProgressView().controlSize(.small); Text(model.refreshProgress).font(.caption) }
+    }
+
+    private var cancel: some View {
+        Button("更新を中止") { model.cancelRefresh() }
+            .disabled(model.isStoppingRefresh)
+            .accessibilityIdentifier("cancel-feed-refresh")
+    }
+}
+
+private struct FeedManagementView: View {
+    @ObservedObject var model: FeedReaderModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var removal: FeedSubscription?
+    @State private var confirmsRemoval = false
+    @State private var isAdding = false
+    @State private var removingIDs: Set<String> = []
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("フィードを追加").font(.headline)
+                    TextField("HTTPS フィード URL", text: $model.feedURL)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("HTTPS フィード URL")
+                        .accessibilityIdentifier("feed-url")
+                        .onSubmit { addFeed() }
+                        #if os(iOS)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        #endif
+                    Button("追加") { addFeed() }
+                        .disabled(cannotAdd || model.feedURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityIdentifier("add-feed")
+                    Button("Apple Developer ニュースを追加") { addFeed(starter: true) }
+                        .disabled(cannotAdd)
+                        .accessibilityIdentifier("add-apple-feed")
+                    Text(model.message).font(.callout).textSelection(.enabled)
+                        .accessibilityIdentifier("feed-management-message")
+                    if model.isRefreshing { RefreshProgressView(model: model) }
+                    if let failure = model.refreshHistoryFailure {
+                        Text(failure).foregroundStyle(.red).textSelection(.enabled)
+                    }
+                    Divider()
+                    Text("購読フィード（\(model.subscriptions.count)件）").font(.headline)
+                    if model.subscriptions.isEmpty {
+                        Text("購読中のフィードはありません。URLを入力して追加できます。")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(model.subscriptions) { subscription in
+                        feedRow(subscription)
+                        Divider()
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+            }
+            .navigationTitle("フィードを管理")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("閉じる") { dismiss() }
+                        .keyboardShortcut(.cancelAction)
+                        .accessibilityIdentifier("close-feed-management")
+                }
+            }
+            .confirmationDialog("購読を解除しますか？", isPresented: $confirmsRemoval,
+                                titleVisibility: .visible, presenting: removal) { subscription in
+                Button("購読を解除", role: .destructive) {
+                    removingIDs.insert(subscription.id)
+                    Task {
+                        await model.remove(subscription)
+                        removingIDs.remove(subscription.id)
+                    }
+                }
+                Button("キャンセル", role: .cancel) { removal = nil }
+            } message: { subscription in
+                Text("\(name(subscription))の更新を停止します。ブックマークした記事とその保存済み日本語訳は残ります。それ以外の記事と日本語訳は削除されます。")
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 460, idealWidth: 560, minHeight: 420, idealHeight: 620)
+        #endif
+    }
+
+    private var cannotAdd: Bool { isAdding || model.isLoading || model.libraryFailure != nil }
+
+    private func addFeed(starter: Bool = false) {
+        guard !cannotAdd, starter || !model.feedURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        isAdding = true
+        Task {
+            if starter { await model.addStarterFeed() } else { await model.addEnteredFeed() }
+            isAdding = false
+        }
+    }
+
+    private func name(_ subscription: FeedSubscription) -> String {
+        subscription.title ?? subscription.url.host ?? subscription.url.absoluteString
+    }
+
+    private func feedRow(_ subscription: FeedSubscription) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(name(subscription)).font(.headline)
+            Text(subscription.url.absoluteString).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            Text(model.refreshPhases[subscription.id]?.rawValue ?? "未更新").font(.subheadline)
+            if let date = model.lastSuccessfulRefreshes[subscription.id] {
+                Text("最終成功: " + date.formatted(date: .abbreviated, time: .standard)).font(.caption)
+            } else {
+                Text(model.refreshHistoryFailure == nil ? "最終成功: 記録なし" : "最終成功: 不明").font(.caption)
+            }
+            if let failure = model.failureByFeed[subscription.id] {
+                Text((model.refreshPhases[subscription.id] == .failed ? "" : "前回の失敗: ") + failure)
+                    .font(.callout).foregroundStyle(.red).textSelection(.enabled)
+            }
+            Button("このフィードを再試行") { Task { await model.refresh(ids: [subscription.id]) } }
+                .disabled(model.isRefreshing || removingIDs.contains(subscription.id))
+                .accessibilityLabel(name(subscription) + "を再試行")
+                .accessibilityIdentifier("retry-feed-" + subscription.id)
+            Button("購読を解除", role: .destructive) {
+                removal = subscription
+                confirmsRemoval = true
+            }
+            .disabled(removingIDs.contains(subscription.id))
+            .accessibilityLabel(name(subscription) + "の購読を解除")
+            .accessibilityIdentifier("remove-feed-" + subscription.id)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
