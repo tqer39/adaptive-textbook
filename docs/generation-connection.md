@@ -1,184 +1,189 @@
-# 実生成の接続判断（未接続）
+# Decisions for connecting live generation (disconnected)
 
-今回動くのは質問保存・本人の手動追加案・差分確認・ローカル教材版の反映です。
-AI 生成は未接続です。通常UIに生成成功のfixtureや自動生成風の候補はありません。
-外部送信・API 呼び出し・課金・キー取得・OAuth登録・デプロイは実行していません。
-既存のCodexログインや見えるAPI設定は、教材サービスの送信・課金許可と扱いません。
-秘密ファイル・キー値・トークンを探索していません。利用可能なAPIアカウントは未確認です。
-キーはサービス利用者自身が設定するBYOK仕様です。運営共通LLMキーを前提にしません。
-[BYOKの模擬画面と保存設計](byok.md)を実装・記録しました。実キー入力は無効です。
+[English](generation-connection.md) | [日本語](generation-connection.ja.md)
 
-## 接続案と、先に必要な本人承認
+The current working features are question saving, the owner's manual additions, diff review, and applying local lesson versions.
+AI generation is disconnected. The normal UI contains no successful-generation fixtures or candidates presented as if automatically generated.
+No external submissions, API calls, charges, key retrieval, OAuth registrations, or deployments were performed.
+An existing Codex login or visible API settings are not treated as permission for the textbook service to send requests or incur charges.
+Secret files, key values, and tokens were not searched. Availability of API accounts remains unverified.
+The design is BYOK: service users configure their own keys. A shared operator-owned LLM key is not assumed.
+The [BYOK mock screen and storage design](byok.md) have been implemented and documented. Real-key entry is disabled.
 
-本人は最初のproviderにOpenAIとAnthropicを選びました。用途ごとのmodel採用・実送信は未承認です。
-用途ごとに複数provider/modelを選択できるregistryとadapter境界を用意しました。
-OpenAI Responses API / gpt-6-luna と Anthropic Messages API / claude-haiku-5-5 が低価格の候補です。
-2026-10-11に公式のAPIモデルページを取得し、API名・Responses・Structured Outputs対応を確認しました。
-子モデル一覧は根拠にしていません。実アカウントの利用可否・課金設定は未確認です。
-生成形式は許可済み JSON schema とZod検証で、任意JS/MDX/SVGコードを実行しません。
-この候補は接続済み・動作検証済みという意味ではありません。
+## Connection proposal and required prior owner approval
 
-承認してほしい範囲は、選んだ1件の公開技術質問と、関連する固定教材の最小抜粋・公式根拠だけです。
-送信先は本人がその回に選択するOpenAIまたはAnthropicのAPI。回答履歴・誤答・自己申告・感想・匿名ID・学習時刻は送信しません。
-質問自由文に私的情報が入り得るため、送信本文のpreviewと本人選択を必須にします。
-個人・企業の内部名、秘密、実DNS設定やログが混入した質問は、そのまま送信しません。
-送信・保存条件と、使用する本人管理のAPIアカウントを確認するまで実接続は保留します。
+The owner selected OpenAI and Anthropic as the initial providers. Model choices for each purpose and live requests are not yet approved.
+A registry and adapter boundary support choosing multiple providers/models for each purpose.
+OpenAI Responses API / gpt-6-luna and Anthropic Messages API / claude-haiku-5-5 are low-cost candidates.
+Official API model pages were retrieved on 2026-10-11 to confirm API names, Responses support, and Structured Outputs support.
+A subagent-model listing was not used as evidence. Availability and billing settings for the real accounts remain unverified.
+Generation uses an approved JSON schema and Zod validation; arbitrary JS/MDX/SVG code is not executed.
+Being a candidate does not mean the connection exists or has been tested.
 
-OpenAIのデータ資料では API データは通常学習に使われず、標準の不正利用監視ログは30日です。
-Responses の store=false はアプリケーション状態の保存を抑える設定で、無条件の無保存保証ではありません。
-Zero Data Retention の資格や設定は未確認で、ここでは約束しません。
-無料APIも無条件に私的情報を送れるとは扱いません。
-AnthropicのCommercial APIは通常入力・出力を30日以内に削除しますが、契約・不正利用・法令等の例外があります。
-Structured Outputsには機能別ZDRとschema cache（最終利用から最大24時間）の条件があります。
-本人のworkspaceの契約やZDR適用は未確認です。両社とも無条件の無保存保証として扱いません。
+The requested approval would cover only one selected public technical question, minimal relevant excerpts from the fixed lesson, and official evidence.
+The destination would be the OpenAI or Anthropic API selected by the owner for that request.
+Answer history, wrong answers, self-reports, impressions, anonymous IDs, and learning timestamps are not sent.
+Because free-form questions may contain private information, a preview of the request body and the owner's selection are required.
+Questions containing internal personal/company names, secrets, actual DNS configuration, or logs are not sent unchanged.
+Live connection remains on hold until sending/retention conditions and the owner-managed API account have been confirmed.
 
-## 月500円のハード上限
+According to the OpenAI data documentation reviewed, API data is normally not used for training, and standard abuse-monitoring logs are retained for 30 days.
+Responses store=false reduces application-state retention; it is not an unconditional no-retention guarantee.
+Zero Data Retention eligibility/settings have not been confirmed and are not promised here.
+A free API is not considered unconditional permission to send private information either.
+Anthropic's Commercial API normally deletes inputs/outputs within 30 days, with exceptions for contracts, abuse, legal requirements, and other conditions.
+Structured Outputs has feature-specific ZDR conditions and schema caching of up to 24 hours after last use.
+The owner's workspace contract and ZDR applicability remain unverified. Neither provider is treated as guaranteeing unconditional non-retention.
 
-500円は本人一人のAIを含むプロダクト運用全体、実習費は別です。
-BYOKでは当人の全providerを合算し、利用者間では予算を分離します。共用基盤費の配賦は未確定です。
-Workersの利用者別台帳・暗号化保存は[ローカル実装と未接続部分](workers-byok.md)を参照してください。
-今のブラウザだけの試作に、有料API呼び出しはありません。
-ブラウザとは別に、localhost の通信offサーバーと予算予約台帳を実装しました。
-Googleログインは開発に不要。localhost限定・Origin確認・CSRF対策を付け、秘密をブラウザへ返しません。
-鍵の安全な設定方法は本人が選択します。repo/localStorage/ログ/URLへ鍵を保存しません。
+## Hard monthly ceiling of ¥500
 
-送信前に必要な制御：
+The ¥500 covers all product operations, including AI, for the owner alone; hands-on exercise costs are separate.
+With BYOK, all of a person's providers are combined, while budgets are isolated between users. Shared infrastructure cost allocation is unresolved.
+See the [local implementation and disconnected components](workers-byok.md) for Workers per-user ledgers and encrypted storage.
+The current browser-only prototype makes no paid API calls.
+Separately from the browser, a localhost server with communication disabled and a budget-reservation ledger have been implemented.
+Google login is unnecessary for development. The server is localhost-only, checks Origin, uses CSRF protection, and never returns secrets to the browser.
+The owner chooses how to configure keys securely. Keys are not stored in repositories/localStorage/logs/URLs.
 
-1. 月ごとの spent + reserved + 固定運用費 + 安全余白 が500円以下になる予約だけ受け付ける。
-2. 予約と更新をサーバーの永続台帳・排他トランザクションで行う。同時実行は1件。
-3. 入力上限8000 token、請求対象の出力上限2000 token、ツール呼び出しなしを初期候補にする。
-4. SDKを含め自動retryは0。再試行も新しい予約が必要で、重複送信は request ID で抑止する。
-5. timeout・中断・結果不明は予約を勝手に返さず、実使用が確認できるまで確保する。
-6. 価格・為替・税・決済手数料・運用費の上界を確定できないときは送信しない。
-7. 上限到達、価格更新未確認、台帳障害では生成を停止し、読書とローカル質問保存は続けられる。
+Controls required before sending:
 
-2026-10-11 の公式標準価格では gpt-6-luna の短文脈は入力$0.10/出力$0.50（各100万token）。
-8000入力+2000出力の標準短文脈料金は$0.0018です。追加有料ツールは使いません。
-予約には長文脈のcache-write入力上界$0.25/出力$0.75を使う例なら最大$0.0035です。
-仮の計画用換算200円/$、20%の余白なら0.84円で、1円に切り上げて予約する例になります。
-200円/$は現在為替の断定ではありません。決済の円建て上界が不明なら、この例で実送信しません。
-たとえば固定運用200円・別の安全余白100円を確保すると、AI予約は残り200円以内です。
-実測の運用費や適用税・料金を確認していないので、月の生成件数や500円以内の実運用達成は保証しません。
-予算予約・台帳・両社のHTTP transportは通信offで実装済み、ネットワークモックのみで検証しました。
-Anthropic Haiku 5.5も短文脈は入力$0.10/出力$0.50（各100万token）、100K超では$0.50/$2.50です。
-予約には長文脈1時間cache-writeの入力上界$1.00と出力$2.50を採用し、同じ上限tokenで$0.013です。
-上記の仮換算では3.12円（台帳3120 milli-yen）。cache-controlは送信せず、低い実料金を予算に先取りしません。
-候補の価格は2026-10-11確認です。アカウントの適用料金や初期入金は別途確認が必要です。
-公式の価格メタデータだけでは送信できず、費用上界・保存条件・用途選択・送信承認が未設定なら停止します。
-現在の正常起動はすべて未接続です。「月500円保証済み」という表示や保証はありません。
+1. Accept only reservations where monthly spent + reserved + fixed operating costs + safety margin remain at or below ¥500.
+2. Make reservations/updates through a persistent server ledger and exclusive transactions. Allow one concurrent operation.
+3. Start with a candidate input ceiling of 8000 tokens, a billable-output ceiling of 2000 tokens, and no tool calls.
+4. Set automatic retries to zero, including SDK retries. Each retry needs a new reservation; request IDs prevent duplicate sends.
+5. Retain reservations after timeouts, cancellation, or unknown outcomes until actual usage is confirmed; do not release them automatically.
+6. Do not send if ceilings on price, exchange rate, tax, payment fees, or operating costs cannot be established.
+7. Stop generation when the ceiling is reached, price updates are unconfirmed, or the ledger fails. Reading and local question saving remain available.
 
-## 初期入金と、接続前に進められる範囲
+At the official standard prices checked on 2026-10-11, gpt-6-luna short-context pricing was $0.10 input / $0.50 output per million tokens.
+8000 input + 2000 output tokens cost $0.0018 at standard short-context rates. No additional paid tools are used.
+An example reservation using long-context cache-write input ceilings of $0.25 and output of $0.75 is at most $0.0035.
+At a hypothetical planning conversion of ¥200/$ with a 20% margin, this is ¥0.84, rounded up to a ¥1 reservation.
+¥200/$ is not a statement of the current exchange rate. If the yen-denominated payment ceiling is unknown, this example does not permit live sending.
+For example, setting aside ¥200 for fixed operations and another ¥100 safety margin leaves at most ¥200 for AI reservations.
+Actual operating costs and applicable taxes/prices have not been confirmed, so neither a monthly generation count nor real operation within ¥500 is guaranteed.
+Budget reservations, the ledger, and both providers' HTTP transports are implemented with communication off and were tested only with network mocks.
+Anthropic Haiku 5.5 short-context pricing was also $0.10 input / $0.50 output per million tokens, rising to $0.50/$2.50 above 100K.
+Reservations use the long-context one-hour cache-write input ceiling of $1.00 and output of $2.50, totaling $0.013 at the same token limits.
+At the hypothetical conversion above, that is ¥3.12 (3120 milli-yen in the ledger). No cache-control is sent, and lower actual charges are not credited in advance.
+Candidate prices were checked on 2026-10-11. Account-specific applicable prices and initial deposits require separate confirmation.
+Official price metadata alone cannot authorize sending; missing cost ceilings, retention conditions, purpose selection, or sending approval stops processing.
+All normal startup paths currently remain disconnected. There is no display or promise that the ¥500 monthly guarantee has been achieved.
 
-OpenAIの新APIアカウントのprepaid初回購入は最低$5、既定$10。自動入金は設定時に既定で有効です。
-購入creditは1年で失効し、原則返金されません。既存残高・無料creditの有無は調べていません。Anthropicの本人契約・初回入金額も未確認です。
-初期入金は月の実使用額とは別ですが、現金支出の500円制約から自動的に除外しません。
-実決済の円額が500円を超える場合、別枠の初期入金を本人が認めない限り接続を保留します。
-prepaid残高・自動入金上限は即時の使用額上限ではなく、停止遅延もあるため自前の予約台帳が必要です。
+## Initial deposits and work possible before connection
 
-課金・送信の承認前に、外部通信を無効にした状態で次をローカル実装しました。
+For new OpenAI API accounts, the initial prepaid purchase had a $5 minimum and $10 default. Auto-recharge was enabled by default when configured.
+Purchased credits expire after one year and are generally non-refundable. Existing balances/free credits were not checked.
+The owner's Anthropic contract and initial deposit amount also remain unverified.
+Initial deposits differ from actual monthly usage, but are not automatically excluded from the ¥500 cash-spending constraint.
+If the actual payment exceeds ¥500 in yen, connection stays on hold unless the owner separately approves an initial-deposit allowance.
+Prepaid balances and auto-recharge limits are not immediate usage ceilings, and stopping can be delayed, so a separate reservation ledger is necessary.
 
-- 永続予算台帳・原子的な予約・月次区切り・同時1件・結果不明の予約維持・二重送信防止。
-- 送信preview・本人選択・入力/出力制限・schema検証・失敗時に教材を変えない経路。
-- localhost/Origin/CSRF/要求サイズを検査するサーバー、transportを差替えるadapter契約。
-- ネットワークを使わないstubと両社のHTTPモックで、上限・競合・timeout・retryなし・秘密非露出のテスト。
+Before approval for billing/sending, the following were implemented locally with external communication disabled:
 
-この段階のadapterは未接続と表示し、準備したtransport・APIキー・支払・実リクエストは有効化しません。
-次の本人判断は「どのprovider/modelに、previewした公開技術質問を送ることを許可するか」です。
-初期入金の許容と実送信は、円建て額・送信本文を確認して別に承認します。
-方針決定後に必要なのは、本人によるAPI project/利用権限確認、必要なら支払設定と自動入金off、
-利用者自身のキーをサービスの設定画面から安全に登録・管理できる認証と暗号化保存です。
-運営者による共通LLMキーの設定や、利用者がキーをチャットへ貼り付ける方法は前提にしません。
-既存credential、Codexログイン、課金アカウントを探索・流用しません。
+- Persistent budget ledger, atomic reservations, monthly periods, one concurrent operation, retained unknown reservations, and duplicate-send prevention.
+- Request previews, owner selection, input/output limits, schema validation, and a failure path that leaves lessons unchanged.
+- A server checking localhost/Origin/CSRF/request sizes, and an adapter contract for replacing transports.
+- Offline stubs and both providers' HTTP mocks testing limits, races, timeouts, no retries, and no secret exposure.
 
-## 通信off実装の契約と限界
+At this stage the adapter displays disconnected status; prepared transports, API keys, payments, and live requests are not enabled.
+The next owner decision is: "Which provider/model may receive the public technical question shown in the preview?"
+Permission for an initial deposit and for live sending are separate approvals after reviewing the yen amount and request body.
+After that decision, the owner must check API project/access permissions, configure payment and disable auto-recharge if needed,
+and use authentication/encrypted storage that lets users safely register/manage their own keys through the service's settings screen.
+The design does not assume an operator-configured shared LLM key or ask users to paste keys into chat.
+Existing credentials, Codex logins, and billing accounts are not searched or repurposed.
 
-server/registry.mjs は候補をdisabledで保持し、用語説明・教材追加・根拠確認の用途選択は未設定です。
-registryの各項目はprovider/model、用途、入出力上限、structured output能力、データ条件と承認状態、
-価格・価格確認日を持ちます。現在の公開契約はdisabled/test-onlyのみで、live送信を有効にする経路がありません。
-server/adapter.ts は型付きの薄い境界です。provider SDK・LiteLLM Proxy・AI SDKは導入していません。
-将来の互換endpointやSDKへの差替えでも、台帳・上限・出典検査はadapterの外に残します。
-障害時の他providerへの自動fallback・並列送信は行いません。stubはtests/server内に限定しました。
+## Contracts and limitations of the communication-off implementation
 
-台帳は.local-state/generation/budget.json（Git除外、作成mode 0600）です。
-排他directoryの作成→schema確認→一時fileにfsync→atomic rename→directory fsyncを送信前に完了します。
-全provider共通500000 milli-yenから固定費・安全余白を引いて整数予約し、provider別上限も設定できます。
-実行中・結果不明は全providerで新規実行を止め、月をまたいでも自動解放しません。
-request IDとpayload/model/sourceのhashで重複を防ぎます。質問本文や秘密、provider例外を台帳に残しません。
-成功proposalのJSONと出典引用はローカル保存されます。不正出力でも確認できた費用はspentへ記録します。
-price/FX/費用条件を同月で変更した場合も保留し、破損台帳や残ったlockを自動リセットしません。
-異常停止後の手動費用照合・lock復旧ツールは未実装です。予約を消して無条件再送してはいけません。
-fsyncを含む永続化はMac Studioで検証し、Windows/Linux実機や電源断の障害注入は未検証です。
+server/registry.mjs keeps candidates disabled; model choices for terminology explanations, lesson additions, and evidence checks are unconfigured.
+Each registry entry contains provider/model, purpose, input/output limits, structured-output capability, data conditions/approval status,
+price, and price-verification date. The current public contract supports only disabled/test-only modes, with no route to enable live sending.
+server/adapter.ts is a thin typed boundary. No provider SDK, LiteLLM Proxy, or AI SDK has been introduced.
+If a compatible endpoint or SDK replaces it later, the ledger, limits, and source checks remain outside the adapter.
+There is no automatic fallback to another provider or parallel sending on failure. Stubs are limited to tests/server.
 
-HTTPは127.0.0.1:5274のみ、Host完全一致、Originは `http://127.0.0.1:5173` のみです。
-GET /sessionで一時CSRF tokenを渡し、POST /proposalsはtoken・JSON・body上限・入力schemaを確認します。
-学習履歴・キーなどの追加入力fieldを拒否し、CORSは許可originのみ、レスポンスはno-storeです。
-外部出典のfetch/SSRF経路はなく、サーバーが保持する指定公式URLのsnapshotだけを参照する契約です。
-出典は30日以内・未来でない確認時刻を必要とし、生成の引用がsnapshot本文に存在することを確認します。
-引用一致は内容の意味的正しさの証明ではありません。出典取得と現行schemaへの反映接続は未実装です。
-返せるJSONは説明・二つの固定図・四つの既存CAA scenarioに限り、JS/MDX/任意図コードは拒否します。
-読書UIは接続していないため生成ボタンや生成済みstub結果を表示せず、本人の手動反映経路を維持します。
+The ledger is .local-state/generation/budget.json (Git-ignored, created with mode 0600).
+Before sending, it creates an exclusive directory, validates the schema, fsyncs a temporary file, atomically renames it, and fsyncs the directory.
+Integer reservations use the shared 500000 milli-yen budget across all providers after fixed costs/safety margin; per-provider limits can also be set.
+Running/unknown operations block new executions across all providers and are never automatically released at month boundaries.
+Request IDs and hashes of payload/model/source prevent duplication. Question bodies, secrets, and provider exceptions are not retained in the ledger.
+Successful proposal JSON and source quotations are stored locally. Even invalid output records confirmed costs as spent.
+Changes to price/FX/cost conditions within the same month also place processing on hold. Corrupt ledgers and leftover locks are not automatically reset.
+Manual cost-reconciliation/lock-recovery tools after abnormal termination are unimplemented. Never delete reservations and resend unconditionally.
+Persistence, including fsync, was checked on Mac Studio; physical Windows/Linux machines and power-loss fault injection remain unverified.
 
-HTTPの本文byte上限は資源保護で、token数の保証には使いません。
-予約永続化後、完全なprompt/schemaをOpenAI input_tokensまたはAnthropic count_tokensで計数します。
-計数値＋model別余白が入力上限以内の場合のみ、そのproviderの生成を1回送信します。
-計数にも質問・抜粋・出典が外部送信されるので、本文previewと本人承認を先に必要とします。
-Anthropicは計数無料と公式に説明していますが推定値です。実生成との差の厳密な上界は未確認です。
-OpenAIの計数課金条件も未確定です。tokenCountMargin=null / tokenCountTermsConfirmed=falseのまま停止します。
-モックの256token余白は試験値で、実APIの上界保証ではありません。
-送信後のusage超過検査だけでは事前の費用上限を保証できないため、計数の上界確認を有効化条件に残します。
-生成では出力上限2000、OpenAI reasoning none、Anthropic thinking disabled / effort lowを指定します。
-思考tokenを含むusage.output_tokensを利用し二重加算しません。Anthropicのcache入力は別内訳を合算します。
-usageにregistryの保守的単価・円換算上界を掛け、整数で切り上げてspentに記録します。
-これは請求書照合済み金額ではありません。usage/モデル/料金tierが不明、上限超過なら予約を保持します。
-拒否・出力切れ・不正JSON・出典不一致も、usageが確認できれば費用を記録し教材案は返しません。
-タイムアウト後に計数が遅れて返っても生成を送りません。自動retry・redirect・fallbackはありません。
-実キーの登録・設定は行っていません。利用者別credentialの安全な保存経路を接続するまで無効です。
-transport factoryは明示的に渡された秘密だけをAuthorization headerに使い、環境変数も読みません。
-通常起動はfactoryを登録せず、prepared transportはGenerationServiceでも拒否します。
-frontendのbundleへserverコード・キー名・台帳が入らない構成です。
+HTTP listens only on 127.0.0.1:5274, requires an exact Host match, and allows only Origin `http://127.0.0.1:5173`.
+GET /session supplies a temporary CSRF token; POST /proposals checks that token, JSON, body limits, and the input schema.
+Additional input fields such as learning history and keys are rejected. CORS allows only the permitted origin; responses use no-store.
+There is no external source-fetching/SSRF path; only server-held snapshots of designated official URLs are referenced.
+Sources require verification timestamps within 30 days and not in the future, and generated quotations must occur in the snapshot body.
+A quotation match does not prove semantic correctness. Source retrieval and integration into the current schema remain unimplemented.
+Returned JSON is limited to explanations, two fixed diagrams, and four existing CAA scenarios; JS/MDX/arbitrary diagram code is rejected.
+Because the reading UI is disconnected, it shows no generation button or generated stub results and preserves the owner's manual application path.
 
-## 本人に必要な最小setupと承認文面案
+The HTTP body-byte limit protects resources; it does not guarantee token counts.
+After persisting a reservation, the complete prompt/schema is counted using OpenAI input_tokens or Anthropic count_tokens.
+Only when the count plus model-specific margin is within the input ceiling is one generation request sent to that provider.
+Counting also sends questions, excerpts, and sources externally, so the body preview and owner approval must come first.
+Anthropic officially describes counting as free, but its result is an estimate; a strict upper bound on the difference from actual generation remains unverified.
+OpenAI counting charges also remain unresolved. Processing stays blocked with tokenCountMargin=null / tokenCountTermsConfirmed=false.
+The mock 256-token margin is a test value, not a guarantee of real-API upper bounds.
+Checking usage only after sending cannot guarantee a prior cost ceiling; confirming the counting upper bound remains an activation condition.
+Generation specifies a 2000 output ceiling, OpenAI reasoning none, and Anthropic thinking disabled / effort low.
+usage.output_tokens includes thinking tokens and is not double-counted. Anthropic cached inputs are added from their separate breakdown.
+Usage is multiplied by conservative registry unit prices and yen-conversion ceilings, rounded up to integers, and recorded as spent.
+This is not an invoice-reconciled amount. Unknown usage/model/pricing tier or exceeded limits retain the reservation.
+Refusals, truncated outputs, invalid JSON, and source mismatches still record costs when usage is known, but return no lesson proposal.
+Late token-count results after a timeout do not trigger generation. There are no automatic retries, redirects, or fallbacks.
+Real keys have not been registered/configured. The path remains disabled until secure per-user credential storage is connected.
+The transport factory uses only an explicitly passed secret for the Authorization header and does not read environment variables.
+Normal startup does not register the factory; GenerationService also rejects prepared transports.
+Server code, key names, and ledgers are excluded from the frontend bundle.
 
-OpenAI / Anthropicの選択は済みです。次は本人が各APIの課金project/workspaceとmodel利用可否を確認します。
-用語説明・教材追加・根拠確認の各用途で、どのmodelを使うかは未選択です。
-アカウントIDやキー値をチャットへ送る必要はありません。OpenAIの場合も既存projectをこちらで探索しません。
-既存残高がなければ、初期入金の円建て額と500円制約の扱いを別に確認します。
-実キー入力はserver側の利用者別認証・暗号化保存経路を完成させてから有効にします。
-設定画面は模擬操作のみで、平文キーをlocalStorage/repo/ログへ保存しません。
-実送信前には計数上界・計数料金・円建て費用上界・秘密の安全な設定・出典snapshot取得を確定します。
-HTTPモック成功は実APIの受理・教材品質の確認ではありません。本文previewからserverへ渡すUI接続と、
-結果不明の予約を請求記録に照合する復旧経路も未実装です。初回の小さい実送信は別途承認が必要です。
+## Minimum owner setup and draft approval wording
 
-承認文面案：
+OpenAI / Anthropic have been selected. Next, the owner checks billing projects/workspaces and model availability for each API.
+Models for terminology explanations, lesson additions, and evidence checks remain unselected.
+There is no need to send account IDs or key values in chat. Existing OpenAI projects will not be searched either.
+If there is no existing balance, confirm the yen amount of the initial deposit and how it fits the ¥500 constraint separately.
+Real-key entry is enabled only after the server's per-user authentication/encrypted-storage path is complete.
+The settings screen supports simulated operations only and never stores plaintext keys in localStorage/repositories/logs.
+Before live sending, establish token-counting upper bounds/charges, yen-denominated cost ceilings, secure secret configuration, and source-snapshot retrieval.
+Successful HTTP mocks do not verify real API acceptance or lesson quality. The UI connection from body preview to server,
+and recovery that reconciles unknown reservations against billing records, are also unimplemented. The first small live request requires separate approval.
 
-> 用途ごとに私が選んだprovider/modelへ、previewで確認した公開技術質問・関連教材の最小抜粋・公式根拠だけを
-> 送ることを許可します。学習履歴・ID・時刻は送らず、説明されたAPI保存条件を受け入れます。
-> 月500円は全providerと固定運用費の合計で、費用上界が不明なら送信停止。自動retryや別providerへのfallbackは
-> 行いません。キー設定と初期入金は方法・円額を確認して別途承認し、教材反映は差分確認後に私が選択します。
+Draft approval wording:
 
-この文面は案です。現時点で送信・保存条件・鍵設定・支払の承認を得たとは扱いません。
+> I authorize sending only the previewed public technical question, minimal related lesson excerpts, and official evidence
+> to the provider/model I select for each purpose. Do not send learning history, IDs, or timestamps; I accept the explained API retention conditions.
+> The ¥500 monthly limit includes all providers and fixed operating costs; stop sending if cost ceilings are unknown. Do not automatically retry
+> or fall back to another provider. I will separately approve key configuration and initial deposits after reviewing the method and yen amount,
+> and choose whether to apply lesson changes after reviewing the diff.
 
-## 接続後も本人反映を分ける
+This is a draft. It does not establish approval for sending/retention conditions, key configuration, or payment at this time.
 
-生成物は不足点と根拠を持つ提案として保存し、出典不足・不一致・鮮度不足・schema不正では保留します。
-取得した出典本文を根拠として保持し、モデルが書いたURLを「確認済み」と扱いません。
-差分・キャンセル・版競合検査・本人の反映選択を通ってから新しい教材版にします。
-書き換えた版の旧回答・snapshot・質問元文脈は残します。生成が失敗しても教材を変更しません。
+## Keep owner-controlled application separate after connection
 
-公式資料（2026-10-11確認）：
+Generated output is stored as a proposal with identified gaps and evidence; missing/mismatched/stale sources or invalid schemas place it on hold.
+Retrieved source text is retained as evidence. A URL written by the model is not treated as verified.
+A new lesson version is created only after diff review, cancellation/version-conflict checks, and the owner's choice to apply it.
+Old answers, snapshots, and the originating question context are preserved for rewritten versions. Generation failures leave lessons unchanged.
 
-- [価格](https://developers.openai.com/api/docs/pricing)
-- [APIモデルと対応機能](https://developers.openai.com/api/docs/models/gpt-6-luna)
+Official references (checked 2026-10-11):
+
+- [Pricing](https://developers.openai.com/api/docs/pricing)
+- [API models and supported capabilities](https://developers.openai.com/api/docs/models/gpt-6-luna)
 - [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
-- [データの扱い](https://developers.openai.com/api/docs/guides/your-data)
-- [初期入金とprepaid](https://help.openai.com/en/articles/8264644-setting-up-and-managing-prepaid-api-billing)
+- [Data handling](https://developers.openai.com/api/docs/guides/your-data)
+- [Initial deposits and prepaid billing](https://help.openai.com/en/articles/8264644-setting-up-and-managing-prepaid-api-billing)
 
-両社のtransportと計数・使用量の公式資料（2026-10-11確認）：
+Official references for both providers' transports, counting, and usage (checked 2026-10-11):
 
 - [OpenAI token counting](https://developers.openai.com/api/docs/guides/token-counting)
-- [OpenAI reasoningと出力上限](https://developers.openai.com/api/docs/guides/reasoning)
-- [Anthropic Haiku 5.5モデル・料金](https://platform.claude.com/docs/en/models/haiku-5-5/overview)
+- [OpenAI reasoning and output limits](https://developers.openai.com/api/docs/guides/reasoning)
+- [Anthropic Haiku 5.5 model and pricing](https://platform.claude.com/docs/en/models/haiku-5-5/overview)
 - [Anthropic Structured Outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)
 - [Anthropic token counting](https://platform.claude.com/docs/en/build-with-claude/token-counting)
-- [Anthropic Messages契約](https://platform.claude.com/docs/en/api/messages/create)
-- [Anthropic APIデータ保管条件](https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data)
+- [Anthropic Messages API contract](https://platform.claude.com/docs/en/api/messages/create)
+- [Anthropic API data-retention conditions](https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data)

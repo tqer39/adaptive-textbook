@@ -1,64 +1,69 @@
-# 利用者自身のAPIキー（BYOK）
+# Bring your own API key (BYOK)
 
-OpenAI / AnthropicのLLMキーは、サービスを使う利用者が自分で設定します。
-運営共通のLLMキーをWorker Secretへ設定する方式は前提にしません。
-BYOKでも本人のAI料金は月500円の個人運用予算に含め、実習費だけ別枠です。
+[English](byok.md) | [日本語](byok.ja.md)
 
-## 今回実装したローカル画面
+Each service user supplies their own OpenAI / Anthropic LLM keys.
+The design does not assume a shared operator-owned LLM key stored as a Worker Secret.
+Even with BYOK, the owner's AI costs count toward the ¥500 monthly personal operating budget; only hands-on exercise costs are separate.
 
-ヘッダーの「自分のAPIキー設定」から模擬設定画面を開きます。
-実環境の認証・暗号化保存は未設定、実API通信も未接続なので、password欄はdisabledかつ空です。
-貼り付け・実キー登録・接続成功の表示はありません。
-登録は固定のダミー操作で、キー文字列そのものを作成・保持する必要もありません。
-表示するのは登録番号・候補モデル・模擬確認状態だけです。
+## Locally implemented settings screen
 
-- OpenAI / Anthropicを別々に、模擬登録・確認・差し替え・削除・再登録できます。
-- 候補はgpt-6-luna / claude-haiku-5-5の各1件のみ。アカウント利用可否は未確認です。
-- 模擬利用者A/Bの状態を分けます。この選択欄は認証ではありません。
-- 正常・失敗・待機を選び、連打防止・中断・処理中の削除・利用者切替を試せます。
-- 失敗では元の登録を維持し、差し替えやモデル選択では模擬確認をリセットします。
-- 削除や再登録後に古い処理が完了しても、新しい状態を上書きしません。
-- 教材へ戻る・Escape・ブラウザBack/Forwardで開いている画面を閉じ、処理を中断します。
+Open the simulated settings screen from "My API key settings" in the header.
+Live authentication/encrypted storage are unconfigured, and live API communication is disconnected, so the password field is disabled and empty.
+There is no pasting, real-key registration, or display of successful live connections.
+Registration is a fixed dummy operation; it does not require creating or retaining a key string.
+Only the registration number, candidate model, and simulated verification status are shown.
 
-設定は同タブのメモリ内だけです。再読み込み・別タブでは未登録になります。
-localStorageの学習履歴、教材版、提案、exportや共有用データに設定を混ぜません。
-APIキーを画面へ再表示・ログ出力・URL化しません。模擬操作も外部送信・課金しません。
-既存サーバーは引き続き未接続です。模擬確認済みは実API接続成功を意味しません。
+- OpenAI / Anthropic support separate simulated registration, verification, replacement, deletion, and re-registration.
+- Each has one candidate: gpt-6-luna / claude-haiku-5-5. Account availability is unverified.
+- Simulated users A/B have separate state. This selector is not authentication.
+- Select success/failure/waiting to try repeated-click prevention, cancellation, deletion during processing, and switching users.
+- Failure preserves the original registration; replacement or model selection resets simulated verification.
+- An old operation finishing after deletion/re-registration cannot overwrite the new state.
+- Returning to the lesson, Escape, or browser Back/Forward closes the open screen and cancels processing.
 
-## 実キーを受け取る前に必要な準備
+Settings exist only in memory within the same tab. Reloading or opening another tab returns to an unregistered state.
+Settings are not mixed into localStorage learning history, lesson versions, proposals, exports, or shared data.
+API keys are never redisplayed, logged, or placed in URLs. Simulated operations make no external requests and incur no charges.
+The existing server remains disconnected. Simulated verification does not mean a successful live API connection.
 
-利用者が供給するLLMキーと、システムが暗号化保存に使う秘密は別です。
-BYOKはLLMキーの所有者を利用者にする仕様で、暗号化鍵・認証・保存基盤を不要にはしません。
-保存方式は次の設計です。Workers用の暗号化・利用者API・予算はローカル実装しました。
-[実装と実環境の準備](workers-byok.md)を記録しています。Googleログイン/session/logoutと実APIのmetadata画面も実装済み。本番の認証・秘密管理はまだ未設定です。
+## Preparation required before accepting real keys
 
-1. サーバーが認証したsubjectから利用者を確定し、client指定userIdを所有者として信用しない。
-2. 登録・差し替え・確認・削除・モデル選択の各APIで所有者を検証し、CSRFとサイズ・頻度制限を付ける。
-3. HTTPSで受け取ったLLMキーをサーバーで認証付き暗号化し、利用者/provider/credential版をAADで結び付ける。
-4. ランダムnonce、暗号鍵のversion・rotation・復旧を設計する。暗号化用秘密はDB・repo・browserと分離する。
-5. ブラウザへ返すのはcredential参照・provider・状態・モデルだけ。キー全文・末尾・復号結果は返さない。
-6. 同じ利用者のsecretを必要な送信直前だけ復号し、既存transportのsecret引数へ渡す。module共通変数に残さない。
-7. 差し替えは新しいcredential版の安全な保存成功後に確定。失敗では旧版を維持し、古い確認結果を無効化する。
-8. 削除はactiveな参照・暗号文・利用者別cacheを無効化し、再登録と競合しないよう版を検査する。
+User-supplied LLM keys and the system's encryption secrets are separate.
+BYOK makes the user the owner of the LLM key; it does not remove the need for encryption keys, authentication, or storage infrastructure.
+The storage design follows the steps below. Workers encryption, user APIs, and budgets have been implemented locally.
+See the [implementation and live-environment preparation](workers-byok.md).
+Google login/session/logout and the live-API metadata screen are also implemented; production authentication and secret management remain unconfigured.
 
-暗号化用秘密をWorker Secretや別の鍵管理で持つ場合、それは利用者のLLMキーとは異なります。
-秘密の設定、実権限、保存基盤の作成は今回行っていません。
-暗号文でもバックアップ/PITRから即時消去されるとは約束せず、保持期間・復旧時の削除状態を設計します。
-サービス内の削除はproviderでのAPIキー失効ではありません。必要なら利用者自身がprovider側でも失効します。
-送信済みの処理は削除/中断で取り消せたと保証せず、使用額不明の予算予約は維持します。
+1. Identify the user from the server-authenticated subject; do not trust a client-supplied userId as ownership.
+2. Check ownership on every registration/replacement/verification/deletion/model-selection API, with CSRF, size, and rate limits.
+3. Encrypt LLM keys received over HTTPS on the server using authenticated encryption, binding user/provider/credential revision through AAD.
+4. Design random nonces, encryption-key versions, rotation, and recovery. Keep encryption secrets separate from the database, repository, and browser.
+5. Return only the credential reference, provider, status, and model to the browser; never return the full key, its suffix, or decrypted values.
+6. Decrypt the same user's secret only immediately before a necessary request and pass it to the existing transport's secret argument. Do not retain it in module-wide variables.
+7. Finalize replacement only after securely saving a new credential revision. Preserve the old revision on failure and invalidate old verification results.
+8. Deletion invalidates active references, ciphertext, and per-user caches, checking revisions to avoid races with re-registration.
 
-## 利用者分離と既存境界の扱い
+If encryption secrets are kept in Worker Secrets or another key-management system, they are distinct from users' LLM keys.
+This work did not configure secrets, real permissions, or storage infrastructure.
+Even ciphertext is not promised immediate erasure from backups/PITR; retention periods and deletion state after recovery need design.
+Deleting a key inside the service does not revoke it at the provider. Users must also revoke it with the provider if needed.
+Deletion/cancellation cannot guarantee cancellation of an already sent operation; reservations for unknown usage are retained.
 
-src/byok.tsは模擬metadataの状態機械、src/byok-settings.tsは表示・入力無効化と模擬操作です。
-模擬利用者分離の検証は本番の認証・認可・秘密分離の証明ではありません。
-既存GenerationServiceの台帳は全providerで共有する単一のローカル台帳です。
-そのまま複数利用者へ公開しません。Workers側には利用者ごとのDO・予算所有者・credential解決を追加しました。
-個人利用者の両providerを同じ予算へ合算し、月跨ぎでも不明予約を自動解放しません。
-Cloudflare費用などの固定運用費も含め、BYOKにしたことを理由にAI費用を除外しません。
+## User isolation and existing boundaries
 
-transport({send, secret})はcredentialの保存方式と分離済みで、Workers側には予約後の利用者別解決を実装しました。
-任意の送信先URLは許可せず、既存の固定endpoint・retryなし・usage確認・出典/schema検証を維持します。
-接続確認にも外部送信や料金が発生し得るため、方法・provider・model・料金予約を明示して選択させます。
-実キー処理の有効化前に、認証・暗号化・所有者検証・削除/rotation・監査ログの非秘密化を検証します。
-加えて計数課金/推定上界・円建て費用上界・送信本文preview・出典取得・本人反映の実経路が必要です。
-Google認証登録、実送信、初期入金、deployは別途判断で、今回の模擬画面の実装許可に含めません。
+src/byok.ts is the simulated metadata state machine; src/byok-settings.ts handles display, disabled inputs, and simulated operations.
+Testing simulated user isolation does not prove production authentication, authorization, or secret isolation.
+The existing GenerationService ledger is a single local ledger shared by all providers.
+It must not be exposed to multiple users unchanged. Workers adds a per-user DO, budget owner, and credential resolution.
+Both providers' costs are combined within each person's budget, and unknown reservations are not automatically released across month boundaries.
+Fixed operating costs such as Cloudflare are also included; choosing BYOK does not exclude AI costs.
+
+transport({send, secret}) is already separate from credential storage; Workers implements per-user resolution after reservation.
+Arbitrary destination URLs are not allowed. Existing fixed endpoints, no-retry behavior, usage checks, and source/schema validation are preserved.
+Connection checks may also send data externally and incur charges; the method/provider/model/reservation must be shown for explicit selection.
+Before enabling real-key handling, verify authentication, encryption, ownership checks, deletion/rotation, and secret-free audit logging.
+A real path for token-counting charges/estimated upper bounds, yen-denominated cost ceilings, request-body previews,
+source retrieval, and owner-controlled application of changes is also required.
+Google authentication registration, live requests, initial deposits, and deploys require separate decisions;
+they are not covered by permission to implement this simulated screen.

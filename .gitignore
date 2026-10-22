@@ -10,3 +10,11 @@ playwright-report/
 
 # Owner-specific deployment configuration (copy the example before editing).
 wrangler.dev.jsonc
+
+# Native app and development harness build products.
+apple/.build/
+apple/.swiftpm/
+apple/DerivedData/
+*.xcuserstate
+**/xcuserdata/
+harness/bin/

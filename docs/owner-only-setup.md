@@ -1,41 +1,45 @@
-# 本人限定Devの認証設定
+# Authentication setup for owner-only Dev
 
-初期のログイン許可対象は、署名検証済みGoogle ID tokenのemailが本人の設定値と一致し、
-email_verified=trueであるアカウントだけです。公開文書では実メールを記載せず、設定例は `owner@example.invalid`。
-GOOGLE_ALLOWED_EMAILは1件必須。未設定・不正値では認証を停止し、全員許可にfallbackしません。
-既存sessionもverified emailと設定値を毎回照合します。client指定userId/email/検証済みフラグを信用しません。
-所有者は引き続きBetter Authのverified user.idで決め、メールをvaultのIDとして使いません。
+[English](owner-only-setup.md) | [日本語](owner-only-setup.ja.md)
 
-サービス表示は「積み木テキスト」、承認されたDev公開先は `https://tsumiki-text.tqer39.workers.dev` です。
-Devは公開済み。Google未設定のため準備中画面のみ配信します。個別の資格情報・権限追加は別途確認します。設定例を本物の許可メールへ置き換えて使います。
-本番domainの購入はこの準備に不要です。既存Kazokubiのdomain/認証/DBは変更しません。
+Initial login is allowed only when the email in a signature-verified Google ID token matches the owner's configured address
+and email_verified=true. Public documentation does not include the real email; examples use `owner@example.invalid`.
+Exactly one GOOGLE_ALLOWED_EMAIL is required. Missing/invalid settings stop authentication without falling back to allowing everyone.
+Existing sessions are also checked against the configured verified email on every request. Client-supplied userId/email/verified flags are not trusted.
+Ownership continues to use Better Auth's verified user.id, not the email as a vault identifier.
 
-検証：本番entry経由のmock OAuthで本人許可、他アカウント/未検証email拒否、
-client指定ID無効、設定欠落停止、既存sessionの再照合を確認しました。Workers全28件が成功しています。
+The service display name is "積み木テキスト", and the approved Dev destination is `https://tsumiki-text.tqer39.workers.dev`.
+Dev has been published. Because Google is unconfigured, only a setup-pending screen is served. Individual credentials and additional permissions require separate confirmation.
+Replace the example with the actual allowed email before use.
+No production-domain purchase is needed for this preparation. Existing Kazokubi domains/authentication/databases are not changed.
 
-## 本人が承認する項目
+Verification: mock OAuth through the production entry point confirmed owner access, rejection of other accounts/unverified emails,
+ignored client-supplied IDs, fail-closed behavior for missing settings, and rechecks of existing sessions. All 28 Workers tests passed.
 
-Dev公開の承認とFreeの本人確認を受領し、専用資源の作成・公開は完了しました。安全な秘密入力を引き継ぎます。
+## Items for owner approval
 
-- 公開候補：`https://tsumiki-text.tqer39.workers.dev`。
-- 閲覧とログインの初期対象：本人 `owner@example.invalid` のみ。
-- アプリの本人限定認証と必要なOAuth/D1/DO資源を準備すること。Access追加は行わない。
-- 公開前に他アカウントの拒否を確認すること。実キー入力・実AI送信は引き続き無効。
+Approval for Dev publication and the owner's Free-tier confirmation were received; dedicated resources were created and published.
+The remaining handoff covers secure secret entry.
 
-全Workersの共通設定は変更していません。Google client/secret設定は未実施です。
+- Publication candidate: `https://tsumiki-text.tqer39.workers.dev`.
+- Initial viewing/login audience: only the owner, `owner@example.invalid`.
+- Prepare owner-only application authentication and necessary OAuth/D1/DO resources. Do not add Access.
+- Check rejection of other accounts before publication. Real-key entry and live AI requests remain disabled.
 
-## 公開先を承認した後の具体入力
+No shared settings across all Workers were changed. Google client/secret configuration has not been performed.
 
-| 設定 | 入力内容/用途 | 入力先 |
+## Specific inputs after approving the destination
+
+| Setting | Value/purpose | Destination |
 | --- | --- | --- |
-| APP_ORIGIN | 承認したHTTPS origin、末尾slashなし | Worker Variables |
-| GOOGLE_ALLOWED_EMAIL | `owner@example.invalid`（本人限定の認可） | Worker Variables |
-| GOOGLE_CLIENT_ID | Google Web OAuth clientのID | Worker Variables |
-| GOOGLE_CLIENT_SECRET | そのWeb clientのsecret | Worker Secret |
-| BETTER_AUTH_SECRET | 32文字以上の十分な乱数、認証cookie/state保護 | Worker Secret |
-| BYOK_ENCRYPTION_KEYRING | LLMキー保存のAES-256用keyring | Worker Secret |
+| APP_ORIGIN | Approved HTTPS origin without a trailing slash | Worker Variables |
+| GOOGLE_ALLOWED_EMAIL | `owner@example.invalid` (owner-only authorization) | Worker Variables |
+| GOOGLE_CLIENT_ID | Google Web OAuth client ID | Worker Variables |
+| GOOGLE_CLIENT_SECRET | That Web client's secret | Worker Secret |
+| BETTER_AUTH_SECRET | Strong random value of at least 32 characters; protects authentication cookies/state | Worker Secret |
+| BYOK_ENCRYPTION_KEYRING | AES-256 keyring for LLM key storage | Worker Secret |
 
-適用済みの公開設定：
+Published configuration already applied:
 
 ```json
 {
@@ -44,40 +48,40 @@ Dev公開の承認とFreeの本人確認を受領し、専用資源の作成・�
 }
 ```
 
-Google Web OAuth clientのAuthorized redirect URIは、次の完全一致です。
+The Google Web OAuth client's Authorized redirect URI must match exactly:
 
 ```text
 https://tsumiki-text.tqer39.workers.dev/api/auth/callback/google
 ```
 
-実装が要求するscopeはopenid emailだけ。profile/Drive/Gmailのscopeやoffline grantは要求しません。
-同意画面をTestingで準備する場合は、本人だけをtest userに登録します。
-Googleのtest users設定だけに依存せず、アプリ側でもverified emailを照合します。
-ID/secretは同じWeb clientの組み合わせを使います。callbackに別host/pathを混ぜません。
+The implementation requests only openid email, not profile/Drive/Gmail scopes or offline grants.
+If the consent screen is prepared in Testing mode, register only the owner as a test user.
+The application checks verified email too, rather than relying solely on Google's test-users setting.
+Use the ID/secret pair from the same Web client. Do not mix a different host/path into the callback.
 
-secretは本人がCloudflare Dashboardの対象WorkerのVariables and Secretsへ直接安全に入力します。
-chat・repo・URL・logへ貼りません。この手順は実secretの生成/取得/設定を今回行った意味ではありません。
-Better Auth secretとBYOK暗号鍵は別用途で、運営共通のLLMキーを設定する項目はありません。
-BYOK keyringはactive版と各版の32byte base64鍵を持つJSONです。backup/rotationも本人が管理します。
-設定例へ本物の鍵値を埋め込みません。本人のLLMキーは、安全性確認後にアプリの本人用設定画面へ入力します。
+The owner enters secrets directly and securely in Cloudflare Dashboard, under the target Worker's Variables and Secrets.
+Do not paste them into chat/repositories/URLs/logs. These instructions do not mean real secrets were generated, retrieved, or configured in this work.
+The Better Auth secret and BYOK encryption key serve separate purposes; there is no setting for a shared operator-owned LLM key.
+The BYOK keyring is JSON containing the active version and a 32-byte base64 key for each version. The owner also manages backups/rotation.
+Never embed real keys in examples. The owner's LLM keys belong in the application's owner settings after safety verification.
 
-## DBと公開前の確認
+## Database and pre-publication checks
 
-1. 認証専用D1を準備し、AUTH_DBへbindする。実database_idを対象Workerの設定へ入れる。
-   migrations/auth/0001_better_auth.sql、0002_app_guard.sqlを順番に適用する。
-2. ACCOUNTSをSQLite Durable ObjectのAccountVaultへbindし、wrangler.jsoncのv1 migrationを適用する。
-   認証はD1、BYOK/個人別予算はDO。旧LoginState DO/AUTH_SESSIONSは不要。
-3. Workers Free/D1/SQLite DOの利用条件・現在の無料枠・超過時の停止/課金設定を確認する。
-   他サービスの既存利用量を含むアカウント全体の適用枠も確認し、有料planへ自動的に切り替えない。
-   DB/基盤費も本人の月500円に含める。無料枠内・実CPU上限内をローカル試験だけで保証しない。
-4. 本人限定Devのアプリ認証/fail-closedを確認してから公開する。実Google callback、cookie、中断/logout、
-   他アカウント拒否、D1/DO保存/復旧、実CPU/cold startと費用を確認する。
-5. 実キー入力を許可するgateの変更はその確認後にレビューする。実AI送信はさらに別承認。
+1. Prepare authentication-only D1 and bind it to AUTH_DB. Put the real database_id in the target Worker's configuration.
+   Apply migrations/auth/0001_better_auth.sql and 0002_app_guard.sql in that order.
+2. Bind ACCOUNTS to the SQLite Durable Object AccountVault, applying the v1 migration in wrangler.jsonc.
+   Authentication uses D1; BYOK/per-person budgets use DO. The old LoginState DO/AUTH_SESSIONS are unnecessary.
+3. Confirm Workers Free/D1/SQLite DO eligibility, current free allowances, and stop/billing settings when limits are exceeded.
+   Also check account-wide allowances, including usage by other services. Do not switch automatically to a paid plan.
+   Include database/infrastructure costs in the owner's ¥500 monthly budget. Local tests alone do not guarantee compliance with free allowances or live CPU limits.
+4. Verify owner-only Dev application authentication and fail-closed behavior before publication. Check real Google callbacks, cookies, cancellation/logout,
+   rejection of other accounts, D1/DO storage/recovery, actual CPU/cold starts, and costs.
+5. Review any change enabling real-key entry only after those checks. Live AI requests require further separate approval.
 
-専用D1/SQLite DO/Workerを作成・公開し、匿名asset/API拒否と準備中画面を実URLで検証しました。
-実grant・secret設定・push/PR・domain購入・実Google/AI通信は行っていません。
-公開結果とDB/versionは[公開記録](dev-publication.md)を参照してください。
+Dedicated D1/SQLite DO/Worker resources were created and published, and anonymous asset/API rejection and the setup-pending screen were checked at the live URL.
+Real grants, secret configuration, push/PR, domain purchases, and live Google/AI requests were not performed.
+See the [publication record](dev-publication.md) for publication results and database/version details.
 
-- [認証実装と検証範囲](better-auth.md)
-- [Cloudflare D1料金/無料枠](https://developers.cloudflare.com/d1/platform/pricing/)
-- [Durable Objects料金/無料枠](https://developers.cloudflare.com/durable-objects/platform/pricing/)
+- [Authentication implementation and verification scope](better-auth.md)
+- [Cloudflare D1 pricing/free allowances](https://developers.cloudflare.com/d1/platform/pricing/)
+- [Durable Objects pricing/free allowances](https://developers.cloudflare.com/durable-objects/platform/pricing/)

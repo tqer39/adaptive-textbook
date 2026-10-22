@@ -30,3 +30,40 @@ jobs:
       - run: npm audit --omit=dev
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
+
+  harness:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: harness/go.mod
+          cache: false
+      - name: Install SQLite CLI on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y sqlite3
+      - run: bash scripts/check-harness.sh
+
+  apple:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: swift test --package-path apple --scratch-path .local-state/swift-build
+      - run: swift build --package-path apple --scratch-path .local-state/swift-build
+      - name: Build iOS Simulator app without signing
+        run: >-
+          xcodebuild -project apple/TsumikiText.xcodeproj
+          -scheme TsumikiText-iOS -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath .local-state/ios-build
+          CODE_SIGNING_ALLOWED=NO build

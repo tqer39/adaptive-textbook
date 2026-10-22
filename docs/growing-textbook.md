@@ -1,130 +1,132 @@
-# 質問で教科書を成長させる設計
+# Growing a textbook through questions
 
-設計検討のみ。会話 AI・用語 popover・質問 queue・自動生成は未実装です。
-今回の v1.1.0 は、人が依頼を受け、公式資料を再確認して手動で改善しました。
-既存の教科書の読書・図・予測問題が学習の主役です。
-会話は不足の発見と教材改善を助ける導線として位置づけます。
+[English](growing-textbook.md) | [日本語](growing-textbook.ja.md)
 
-## 節の「気になった視点」から新版へ
+This is a design exploration only. Conversational AI, term popovers, a question queue, and automatic generation are not implemented.
+For v1.1.0, a person received the request, rechecked official documentation, and improved the material manually.
+Reading the existing textbook, working with its diagrams, and answering prediction questions remain the main learning activities.
+Conversation is positioned as a supporting path for discovering gaps and improving the material.
 
-1. 学習中の節に質問を紐づける。原文と読書位置を保存する。
-2. 補助会話で、わからない概念・不足する比較・実務上の目的を特定する。
-3. 公式出典・節・確認日を確認し、説明の根拠と未確認事項を分ける。
-4. 説明・図・比較・問題の追加案と挿入位置、所要時間の変更を提案する。
-5. ユーザーが差分と追加コストを確認する。確認前に現教材を書き換えない。
-6. 新版に反映し、追加部分を目次・時間配分・学習経路へ組み込む。
-7. 学習後に「どこが助かったか」を任意で振り返り、元の質問と関連づける。
+## From a section's “point of interest” to a new edition
 
-会話の回答をそのまま教材へ自動追記しません。
-矛盾、重複、長さ、出典、図と問題の意味論を検証し、旧版を保持します。
-節の stable block ID は順番や表示番号と分けます。
-旧版の質問・回答・時刻を、新版の正解で上書きしません。
-変更された箇所を示し、必要な追加学習を提案します。
-確認前の案には独立した proposal ID を使い、公開済み教材の版にしません。
+1. Associate a question with the section being studied. Save its original text and the reading position.
+2. Use a supporting conversation to identify unclear concepts, missing comparisons, and practical purposes.
+3. Check official sources, sections, and verification dates, separating the explanation's evidence from unverified points.
+4. Propose explanations, diagrams, comparisons, and questions to add, their insertion points, and changes to the estimated duration.
+5. Let the user review the diff and additional cost. Do not rewrite the current material before that review.
+6. Apply the changes to a new edition, incorporating additions into the contents, time allocation, and learning path.
+7. After studying, optionally reflect on what helped and associate that reflection with the original question.
 
-## 必要なデータ
+Do not automatically append conversational answers verbatim to the material.
+Check contradictions, duplication, length, sources, and the semantics of diagrams and questions; retain the old edition.
+A section's stable block ID is separate from its order or displayed number.
+Do not overwrite old-edition questions, answers, or timestamps with the new edition's correct answers.
+Show what changed and suggest any additional study needed.
+Use a separate proposal ID for an unreviewed draft; do not treat it as a published textbook version.
 
-- 質問: question ID、利用者 ID、book ID、version、block ID、原文、時刻
-- 文脈: 読書位置、該当文・図、参照用の短い選択範囲
-- 不足: 概念、目的、反例、比較、実務への適用などの分類
-- 提案: proposal ID、根拠 URL/節/確認日、追加 block ID、差分、見積時間
-- 採否: ユーザー確認、採用先 version、対象学習経路、却下理由（任意）
-- 振り返り: 元 question ID、対象 block/version、助かった点、残った疑問
+## Required data
 
-原文を要約だけに置き換えず、ユーザーの意図を追跡可能にします。
-原文・会話履歴・教材・学習履歴は別のデータとして扱います。
-不要な個人情報を生成 API へ送らず、削除と保存期間も将来の設計対象です。
+- Question: question ID, user ID, book ID, version, block ID, original text, timestamp
+- Context: reading position, relevant sentence/diagram, a short selected range for reference
+- Gap: classification such as concept, purpose, counterexample, comparison, or practical application
+- Proposal: proposal ID, evidence URL/section/verification date, additional block IDs, diff, estimated time
+- Decision: user review, target version, applicable learning path, rejection reason (optional)
+- Reflection: original question ID, target block/version, helpful points, remaining questions
 
-## 今回の手動改善との対応
+Keep the original text instead of replacing it with only a summary, so the user's intent remains traceable.
+Treat the original text, conversation history, textbook, and learning history as separate data.
+Avoid sending unnecessary personal information to the generation API. Deletion and retention periods are also future design work.
 
-質問原文は次のとおりです。
+## How this relates to the current manual improvements
 
-> 「親が禁止されていなくて、子のみ適用した場合、どこからが禁止なのか」
+The original questions were as follows.
 
-不足は「対象名ごとに、どの RRset まで探索するか」の比較でした。
-v1.1.0 の `scope`、`boundary`、`scope-predict`、`sibling-predict`、
-`override-predict` に本文・5 名比較図・3 つの予測問題を追加しました。
+> “If the parent is not prohibited and the restriction is applied only to the child, where does the prohibition begin?”
 
-> 「これがあると何が嬉しいのか？」
+The missing comparison was how far to search for an RRset for each requested name.
+Text, a comparison diagram for five names, and three prediction questions were added to v1.1.0's
+`scope`, `boundary`, `scope-predict`, `sibling-predict`, and `override-predict`.
 
-不足は適用理由と運用判断でした。`applications` に
-CA 限定・発行予定のない検証名の禁止・更新時の CA 変更を追加しました。
-`renewal-predict` に移行時の予測問題、`limits` に制約と SAN 複数名の注意を追加。
-`takeaway` の説明練習にも新しい視点を組み込みました。
+> “How does this help?”
 
-> そういう「気になった視点」を後追いで質問・会話しながら教科書を成長させる機能が必要かな。
+The gap concerned the reason for using it and operational decisions. `applications` gained examples of
+limiting CAs, prohibiting issuance for validation names that do not need certificates, and changing CAs at renewal.
+`renewal-predict` gained a prediction question about migration, and `limits` gained limitations and cautions about multiple SAN names.
+The explanation exercise in `takeaway` also incorporates the new perspective.
 
-これを本設計の補助導線として記録しました。実会話機能の UI は追加していません。
-どこが助かったかの本人の振り返りはまだ未収集です。
-追加図や問題が助かったと本人が答えたことにはしていません。
+> A feature that grows the textbook through later questions and conversation about those “points of interest” may be needed.
 
-今回の内容は RFC 8659 §1・§3–4・§5.3 と公式 CAA 資料を
-2026-10-10 に再確認して反映しました。
-旧教材ソースは `src/books/caa-v1.ts` に保持します。
-保存形式は schemaVersion 1 のまま、旧版回答と新版回答を append で保持します。
-教材 schema は既存形式を読み取れるまま、新 block kind を追加した version 2 です。
-旧版再開位置は新版へ自動適用しません。
+This was recorded as the supporting path in this design. No actual conversational UI was added.
+The user's own reflection on what helped has not yet been collected.
+It has not been represented as though the user said the added diagrams or questions helped.
 
-## 単語レベルの「気になった」導線
+The changes incorporated RFC 8659 §1, §3–4, and §5.3 and official CAA documentation,
+rechecked on 2026-10-10.
+The old textbook source remains in `src/books/caa-v1.ts`.
+The storage format remains schemaVersion 1; answers from old and new editions are retained by appending.
+The textbook schema is version 2, adding new block kinds while still accepting the existing format.
+An old edition's resume position is not automatically applied to the new edition.
 
-> あと単語レベルで気になりが発生したときにどうするかも考えたい。
-> 今回だと `認証局` , `iodef` , `RRset` など。
+## Word-level “points of interest”
 
-「認証局」「iodef」「RRset」などから、読書を中断せず短い説明へ移る設計です。
-まだ静的辞書や clickable term の UI は実装していません。
-まず静的な、出典検証済み説明から始める案と、将来の会話深掘りを区別します。
+> I also want to think about what happens when a word catches my attention.
+> In this case, examples are `certificate authority`, `iodef`, and `RRset`.
 
-初期表示は、短い定義・この文での意味・具体例の 3 点に絞ります。
-「もっと基礎から」「何のためにあるか」「似た語との違い」で深掘りを選べます。
-「後で読む」は queue に入れ、読書を続けます。
-不足が節全体に関係する場合だけ、上記の教材補足提案へ進みます。
+The design lets a reader open a short explanation for “certificate authority,” “iodef,” or “RRset” without interrupting reading.
+A static dictionary and clickable-term UI have not yet been implemented.
+Distinguish a proposal to start with static, source-verified explanations from future conversational exploration.
 
-term ID を文字列そのものにせず、意味の単位として管理します。
-出現箇所には book ID/version、block ID、短い context、選択範囲を紐づけます。
-同じ略語でも文脈によって意味が違えば、説明を一律置換しません。
-辞書の説明版・根拠・確認日も保存し、教材版との対応を持ちます。
-用語をクリックしただけで理解済みにしません。
-確認問題、本人の自己評価、説明の練習などを理解の根拠と分けます。
+The initial view is limited to three things: a short definition, its meaning in this sentence, and a concrete example.
+The reader can choose to explore “start with the basics,” “what is it for,” or “how it differs from similar terms.”
+“Read later” adds it to a queue so reading can continue.
+Only when the gap concerns the whole section does the flow move on to the textbook supplement proposal above.
 
-### 今回の用語例と説明の根拠
+Manage term IDs as units of meaning, rather than using the literal term string as the ID.
+Associate each occurrence with book ID/version, block ID, short context, and the selected range.
+If an abbreviation has different meanings in different contexts, do not replace every explanation uniformly.
+Save explanation versions, evidence, and verification dates in the dictionary and associate them with textbook versions.
+Clicking a term does not mark it as understood.
+Keep comprehension checks, the user's self-assessment, and explanation practice distinct as evidence of understanding.
 
-- 認証局（CA）: 証明書を発行する主体。この文では CAA の制約を確認する発行者。
-  具体例は Let’s Encrypt。CAA の許可と所有確認などの他条件を区別する。
-- RRset: 同じ owner name / type / class に属する DNS レコードの集合。
-  この文では api.example.com の IN CAA レコード全体。
-  issue と iodef が同じ RRset に入る例で「レコード 1 件」との違いを示す。
-- iodef: CAA では違反する発行要求・発行に関する報告先を示す property。
-  `mailto:security@example.com` は報告先の例。通知の送信や到達を保証しない。
-  発行許可・禁止を決める issue との違いを示す。
+### Current term examples and their evidence
 
-定義は RFC 8659 §2.2・§4.4 を根拠とし、2026-10-10 に確認しました。
-[公式 RFC](https://www.rfc-editor.org/rfc/rfc8659.html)を参照します。
-通知仕様や運用上の期待を用語説明だけで断定しません。
+- Certificate authority (CA): an entity that issues certificates. In this sentence, the issuer that checks CAA restrictions.
+  Let’s Encrypt is a concrete example. Distinguish CAA authorization from other conditions such as domain-control validation.
+- RRset: a set of DNS records with the same owner name / type / class.
+  In this sentence, all IN CAA records for api.example.com.
+  Use an example with issue and iodef in the same RRset to distinguish a set from a single record.
+- iodef: in CAA, a property specifying where to report issuance requests or issuance that violate the policy.
+  `mailto:security@example.com` is an example destination. It does not guarantee that a notification is sent or delivered.
+  Explain how it differs from issue, which controls permission or prohibition of issuance.
 
-### 読書を邪魔しない表示と操作
+The definitions are based on RFC 8659 §2.2 and §4.4 and were checked on 2026-10-10.
+See the [official RFC](https://www.rfc-editor.org/rfc/rfc8659.html).
+A term explanation alone must not make definitive claims about notification behavior or operational expectations.
 
-文章中の全専門語を強調し続けず、最初の出現や本人の選択を入口にする案です。
-デスクトップは小さな popover、mobile は短い bottom sheet を候補とします。
-本文を覆いすぎない密度と、元の文の参照を優先します。
+### Presentation and interactions that preserve reading
 
-入口は keyboard で操作できる button とし、説明との aria 関係を持たせます。
-開くと説明へ focus、閉じる/Escape で元の単語へ focus と読書位置を戻します。
-非 modal と modal を混ぜず、modal の場合は focus trap と背景の操作制限を設計します。
-ブラウザの戻るは説明を閉じて読書へ復帰する動作とし、意図せず本を離れないようにします。
-長い深掘りでも book/block の復帰位置を保持します。
-hover のみ、色のみ、小さすぎるタップ領域には依存しません。
-実装前に keyboard・focus・戻る・reduced motion・mobile の操作をレビューします。
+The proposal uses the first occurrence or the reader's selection as an entry point, rather than continually highlighting every technical term.
+A small popover on desktop and a short bottom sheet on mobile are candidates.
+Prioritize a density that does not obscure too much text and keeps the original sentence available for reference.
 
-## 月 500 円（AI 込み）の制御
+Use a keyboard-accessible button as the entry point and establish its ARIA relationship with the explanation.
+Opening moves focus to the explanation; closing or Escape returns focus and the reading position to the original word.
+Do not mix non-modal and modal behavior. For a modal, design the focus trap and restrictions on background interaction.
+Browser Back should close the explanation and return to reading, without unintentionally leaving the book.
+Preserve the book/block return position even during a long exploration.
+Do not rely on hover alone, color alone, or tap targets that are too small.
+Review keyboard, focus, Back, reduced motion, and mobile interactions before implementation.
 
-既知の用語や同じ文脈の再表示は保存済み説明を使い、AI を呼びません。
-時間切替・図操作・通常の読書・問題採点にも AI は不要です。
-新しい追加質問・深掘り・教材差分を生成するときだけコストを見積もります。
+## Controlling a JPY 500 monthly budget, including AI
 
-章全体を毎回再生成せず、対象 block と必要な前提だけを再生成範囲にします。
-既存説明の再利用、出典取得の共有、リクエストの重複抑止を設計します。
-利用者ごとの月額・回数・トークン上限と、通信/保存費を含む予算を管理します。
-予算を超える場合は、既存説明で続ける・質問を queue へ入れる・案を保留する。
-無断で有料 API を呼んだり、静的教材を利用不能にしたりしません。
-モデルや価格は導入時に再確認し、500 円達成は実測が必要です。
-今回の手動改善では API・OAuth・クラウド資源を接続していません。
+Use saved explanations for known terms or repeated displays in the same context, without calling AI.
+Time selection, diagram interactions, normal reading, and question grading also need no AI.
+Estimate cost only when generating a new follow-up question, deeper explanation, or textbook diff.
+
+Limit regeneration to the target block and necessary prerequisites instead of regenerating the whole chapter each time.
+Design for reuse of existing explanations, shared source retrieval, and suppression of duplicate requests.
+Manage per-user monthly, request-count, and token limits, as well as a budget including network/storage costs.
+If the budget would be exceeded, continue with existing explanations, queue the question, or defer the proposal.
+Do not call paid APIs without permission or make static material unavailable.
+Recheck models and prices when introducing them; achieving JPY 500 requires measurement.
+No APIs, OAuth, or cloud resources were connected for the current manual improvements.
