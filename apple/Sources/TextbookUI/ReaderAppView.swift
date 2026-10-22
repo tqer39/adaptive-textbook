@@ -27,6 +27,11 @@ struct FeedReaderView: View {
         case feed(String)
     }
 
+    private struct ArticleListContext: Hashable {
+        let filter: Filter?
+        let search: String?
+    }
+
     @State private var showsFeedManagement = false
     @StateObject private var model: FeedReaderModel
     @Environment(\.scenePhase) private var scenePhase
@@ -135,6 +140,14 @@ struct FeedReaderView: View {
                     }
                 }
             }
+            #if os(macOS)
+            // A filter or query starts a different list. Reusing AppKit's
+            // row-height state across those replacements can reenter its
+            // height calculation (see #23). Keep model/search-field state
+            // outside this identity; refresh and paging retain the list.
+            .id(ArticleListContext(filter: filterSelection.wrappedValue,
+                                   search: model.showsSearchResults ? model.searchText : nil))
+            #endif
             .navigationTitle(filterTitle)
             .searchable(text: $model.searchText, placement: searchFieldPlacement, prompt: model.isPreparingSearch ? "検索を準備中" : "原文・保存済み日本語訳を検索")
             .accessibilityIdentifier("article-search-field")
