@@ -85,7 +85,7 @@ open apple/.build/native/TsumikiText.app --args \
   --data-directory /private/tmp/tsumiki-native-qa
 ```
 
-成果物は `apple/.build/native/` です。
+成果物の既定の保存先は `apple/.build/native/` です。別のbundleパスを使う場合は`TSUMIKI_MAC_BUNDLE_PATH`で指定します。
 App Store 配布物や Developer ID 署名済みアプリではありません。
 
 ## iOS Simulator 用ビルド
@@ -94,12 +94,10 @@ App Store 配布物や Developer ID 署名済みアプリではありません�
 同じ `TextbookUI` と `TextbookCore` をローカル Swift Package として使用します。
 
 ```bash
-xcodebuild -project apple/TsumikiText.xcodeproj \
-  -scheme TsumikiText-iOS -configuration Debug \
-  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath /private/tmp/adaptive-textbook-ios-build \
-  CODE_SIGNING_ALLOWED=NO build
+sh apple/scripts/check-native.sh ios-build
 ```
+
+この共通スクリプトはCIでも使います。`TSUMIKI_IOS_BUILD_PATH`で既定の`.local-state/ios-build`を変更できます。
 
 ビルド成功と Simulator / 実機での操作確認は別に報告します。
 実機へのインストール・署名・Apple アカウントの設定は行いません。
@@ -107,10 +105,12 @@ xcodebuild -project apple/TsumikiText.xcodeproj \
 ## 自動検証
 
 ```bash
-swift test --package-path apple \
-  --scratch-path /private/tmp/adaptive-textbook-swift-build \
-  --cache-path /private/tmp/adaptive-textbook-swift-cache
+mise run apple:test
+mise run apple:build
 ```
+
+これらのタスクとCIは`apple/scripts/check-native.sh`を使います。`TSUMIKI_SWIFT_SCRATCH_PATH`と
+`TSUMIKI_SWIFT_CACHE_PATH`で、既定の`.local-state/swift-build`と`.local-state/swift-cache`を変更できます。
 
 回答の永続化、教材版の分離、同一回答の再保存、異なる内容による上書き拒否、
 書込失敗と再試行、破損データの保持、保存中の目次移動を検証します。

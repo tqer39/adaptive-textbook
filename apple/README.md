@@ -85,7 +85,7 @@ open apple/.build/native/TsumikiText.app --args \
   --data-directory /private/tmp/tsumiki-native-qa
 ```
 
-Artifacts are written to `apple/.build/native/`.
+Artifacts default to `apple/.build/native/`; set `TSUMIKI_MAC_BUNDLE_PATH` to use a separate bundle path.
 This is not an App Store distribution or a Developer ID-signed app.
 
 ## Build for the iOS Simulator
@@ -94,12 +94,10 @@ The shared `TsumikiText-iOS` scheme in `apple/TsumikiText.xcodeproj`
 uses the same `TextbookUI` and `TextbookCore` as a local Swift Package.
 
 ```bash
-xcodebuild -project apple/TsumikiText.xcodeproj \
-  -scheme TsumikiText-iOS -configuration Debug \
-  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath /private/tmp/adaptive-textbook-ios-build \
-  CODE_SIGNING_ALLOWED=NO build
+sh apple/scripts/check-native.sh ios-build
 ```
+
+The shared script is also used by CI. `TSUMIKI_IOS_BUILD_PATH` overrides the default `.local-state/ios-build` directory.
 
 Successful builds and interactive checks in the Simulator / on physical devices are reported separately.
 Installation on a physical device, signing, and Apple account configuration are not performed.
@@ -107,10 +105,12 @@ Installation on a physical device, signing, and Apple account configuration are 
 ## Automated validation
 
 ```bash
-swift test --package-path apple \
-  --scratch-path /private/tmp/adaptive-textbook-swift-build \
-  --cache-path /private/tmp/adaptive-textbook-swift-cache
+mise run apple:test
+mise run apple:build
 ```
+
+These tasks and CI use `apple/scripts/check-native.sh`. `TSUMIKI_SWIFT_SCRATCH_PATH` and
+`TSUMIKI_SWIFT_CACHE_PATH` override `.local-state/swift-build` and `.local-state/swift-cache`.
 
 Tests cover answer persistence, textbook-version separation, saving the same answer again, rejection of conflicting overwrites,
 write failures and retries, preservation of corrupted data, and table-of-contents navigation during a save.

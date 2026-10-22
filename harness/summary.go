@@ -21,6 +21,8 @@ type CheckSummary struct {
 }
 
 type HistorySummary struct {
+	PreflightOperations         int            `json:"preflightOperations"`
+	FailedPreflightOperations   int            `json:"failedPreflightOperations"`
 	Operations                  int            `json:"operations"`
 	ElapsedMillis               int64          `json:"elapsedMillis"`
 	RepairCycles                int            `json:"repairCycles"`
@@ -35,19 +37,21 @@ type HistorySummary struct {
 }
 
 type RunSummary struct {
-	Phase             string         `json:"phase"`
-	PendingOperation  bool           `json:"pendingOperation"`
-	ID                string         `json:"id"`
-	Status            string         `json:"status"`
-	Reason            string         `json:"reason"`
-	Stale             bool           `json:"stale"`
-	CurrentValidation string         `json:"currentValidation,omitempty"`
-	CodeHash          string         `json:"codeHash"`
-	CurrentCodeHash   string         `json:"currentCodeHash"`
-	TaskHash          string         `json:"taskHash"`
-	Findings          []string       `json:"findings"`
-	Checks            []CheckSummary `json:"checks"`
-	History           HistorySummary `json:"history"`
+	Preflight             []Evidence     `json:"preflight,omitempty"`
+	ExternalPrerequisites []string       `json:"externalPrerequisites,omitempty"`
+	Phase                 string         `json:"phase"`
+	PendingOperation      bool           `json:"pendingOperation"`
+	ID                    string         `json:"id"`
+	Status                string         `json:"status"`
+	Reason                string         `json:"reason"`
+	Stale                 bool           `json:"stale"`
+	CurrentValidation     string         `json:"currentValidation,omitempty"`
+	CodeHash              string         `json:"codeHash"`
+	CurrentCodeHash       string         `json:"currentCodeHash"`
+	TaskHash              string         `json:"taskHash"`
+	Findings              []string       `json:"findings"`
+	Checks                []CheckSummary `json:"checks"`
+	History               HistorySummary `json:"history"`
 }
 
 // latestCheckEvidence retains the most recent check attempt for each index in
@@ -96,6 +100,12 @@ func summarizeHistory(r *Run) (HistorySummary, error) {
 	indicesKnown := true
 	turns := map[[2]string]*TokenMetadata{}
 	for _, p := range r.Evidence {
+		if p.Phase == "preflight" {
+			result.PreflightOperations++
+			if p.ExitCode != 0 || p.Outcome != "complete" {
+				result.FailedPreflightOperations++
+			}
+		}
 		if p.Phase == "checks" {
 			result.CheckOperations++
 			if p.ExitCode != 0 || p.Outcome != "complete" {
@@ -172,7 +182,13 @@ func (e Engine) Summary(id string) (RunSummary, error) {
 	if err != nil {
 		return summary, err
 	}
-	summary = RunSummary{ID: r.ID, Status: r.Status, Phase: r.Phase, PendingOperation: r.Pending != nil, Reason: r.Reason, Stale: r.Stale, CurrentValidation: r.CurrentValidation, CodeHash: r.CodeHash, CurrentCodeHash: r.CurrentCodeHash, TaskHash: r.TaskHash, Findings: r.Findings, History: history, Checks: []CheckSummary{}}
+	summary = RunSummary{ExternalPrerequisites: r.Task.ExternalPrerequisites, ID: r.ID, Status: r.Status, Phase: r.Phase, PendingOperation: r.Pending != nil, Reason: r.Reason, Stale: r.Stale, CurrentValidation: r.CurrentValidation, CodeHash: r.CodeHash, CurrentCodeHash: r.CurrentCodeHash, TaskHash: r.TaskHash, Findings: r.Findings, History: history, Checks: []CheckSummary{}}
+	for _, p := range r.Evidence {
+		if p.Phase == "preflight" {
+			p.Log = filepath.Join(e.Store.Directory, p.Log)
+			summary.Preflight = append(summary.Preflight, p)
+		}
+	}
 	for _, p := range latestCheckEvidence(r) {
 		var artifacts *ArtifactReference
 		if ref := p.Artifacts; ref != nil {

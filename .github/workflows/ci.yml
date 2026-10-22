@@ -58,12 +58,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - run: swift test --package-path apple --scratch-path .local-state/swift-build
-      - run: swift build --package-path apple --scratch-path .local-state/swift-build
+      - run: sh apple/scripts/check-native.sh test
+      - run: sh apple/scripts/check-native.sh build
       - name: Build iOS Simulator app without signing
-        run: >-
-          xcodebuild -project apple/TsumikiText.xcodeproj
-          -scheme TsumikiText-iOS -sdk iphonesimulator
-          -destination 'generic/platform=iOS Simulator'
-          -derivedDataPath .local-state/ios-build
-          CODE_SIGNING_ALLOWED=NO build
+        run: sh apple/scripts/check-native.sh ios-build

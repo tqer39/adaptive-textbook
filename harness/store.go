@@ -13,6 +13,7 @@ import (
 )
 
 type Evidence struct {
+	PreflightIndex *int               `json:"preflightIndex,omitempty"`
 	ArtifactError  string             `json:"artifactError,omitempty"`
 	Artifacts      *ArtifactReference `json:"artifacts,omitempty"`
 	CheckIndex     *int               `json:"checkIndex,omitempty"`
@@ -178,11 +179,18 @@ func (s *Store) Load(id string) (*Run, error) {
 	if digest(canonical) != r.TaskHash {
 		return nil, errors.New("ledger-task-modified")
 	}
-	validPhase := r.Phase == "implement" || r.Phase == "checks" || r.Phase == "review" || r.Phase == "repair"
-	if !validPhase || r.CheckIndex < 0 || r.CheckIndex > len(r.Task.Checks) || (r.Phase == "checks" && r.CheckIndex == len(r.Task.Checks)) || r.Operations < 0 || r.Operations > r.Task.MaxOperations || r.Cycle < 0 || r.Cycle > r.Task.MaxRepairCycles || r.ElapsedMillis < 0 || len(r.Evidence) > 64 || !hashPattern.MatchString(r.CodeHash) {
+	validPhase := r.Phase == "preflight" || r.Phase == "implement" || r.Phase == "checks" || r.Phase == "review" || r.Phase == "repair"
+	maxIndex := len(r.Task.Checks)
+	if r.Phase == "preflight" {
+		maxIndex = len(r.Task.Preflight)
+	}
+	if !validPhase || r.CheckIndex < 0 || r.CheckIndex > maxIndex || ((r.Phase == "checks" || r.Phase == "preflight") && r.CheckIndex == maxIndex) || r.Operations < 0 || r.Operations > r.Task.MaxOperations || r.Cycle < 0 || r.Cycle > r.Task.MaxRepairCycles || r.ElapsedMillis < 0 || len(r.Evidence) > 64 || !hashPattern.MatchString(r.CodeHash) {
 		return nil, errors.New("ledger-state-invalid")
 	}
 	for _, proof := range r.Evidence {
+		if proof.PreflightIndex != nil && (proof.Phase != "preflight" || *proof.PreflightIndex < 0 || *proof.PreflightIndex >= len(r.Task.Preflight)) {
+			return nil, errors.New("ledger-evidence-invalid")
+		}
 		if proof.CheckIndex != nil && (proof.Phase != "checks" || *proof.CheckIndex < 0 || *proof.CheckIndex >= len(r.Task.Checks)) {
 			return nil, errors.New("ledger-evidence-invalid")
 		}

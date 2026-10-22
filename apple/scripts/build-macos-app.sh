@@ -5,7 +5,7 @@ task_script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 task_package_directory=$(CDPATH= cd -- "$task_script_directory/.." && pwd)
 task_scratch_path=${TSUMIKI_SWIFT_SCRATCH_PATH:-/private/tmp/adaptive-textbook-swift-build}
 task_cache_path=${TSUMIKI_SWIFT_CACHE_PATH:-/private/tmp/adaptive-textbook-swift-cache}
-task_bundle_path="$task_package_directory/.build/native/TsumikiText.app"
+task_bundle_path=${TSUMIKI_MAC_BUNDLE_PATH:-$task_package_directory/.build/native/TsumikiText.app}
 
 swift build --package-path "$task_package_directory" --scratch-path "$task_scratch_path" --cache-path "$task_cache_path" -c release
 task_binary_directory=$(swift build --package-path "$task_package_directory" --scratch-path "$task_scratch_path" --cache-path "$task_cache_path" -c release --show-bin-path)
