@@ -12,6 +12,12 @@ enum FeedRefreshPhase: String, Sendable {
     var isPending: Bool { self == .queued || self == .fetching }
 }
 
+enum FeedFailureCategory: String, Sendable {
+    case offline = "オフライン"
+    case fetch = "取得失敗"
+    case storage = "保存・読込失敗"
+}
+
 private struct FeedRefreshCompletion: Sendable {
     let subscription: FeedSubscription
     let epoch: Int
@@ -39,6 +45,8 @@ final class FeedReaderModel: ObservableObject {
     @Published private(set) var preparationFailure: String?
     @Published var feedURL = ""
     @Published var isLoading = true
+    @Published private(set) var libraryFailure: String?
+    @Published private(set) var failureCategories: [String: FeedFailureCategory] = [:]
     @Published var isRefreshing = false
     @Published private(set) var isStoppingRefresh = false
     @Published private(set) var refreshPhases: [String: FeedRefreshPhase] = [:]
@@ -131,6 +139,8 @@ final class FeedReaderModel: ObservableObject {
     func initialize() async {
         guard !initialized else { return }
         initialized = true
+        isLoading = true
+        libraryFailure = nil
         do {
             if store == nil {
                 let directory = try dataDirectory ?? Self.defaultDirectory()
@@ -149,6 +159,8 @@ final class FeedReaderModel: ObservableObject {
             }
         } catch {
             isLoading = false
+            libraryFailure = error.localizedDescription
+            initialized = false
             message = "保存領域を利用できません: \(error.localizedDescription)"
         }
     }
@@ -239,6 +251,7 @@ final class FeedReaderModel: ObservableObject {
                 suppressSearchContextInvalidation = false
             }
             failureByFeed[subscription.id] = nil
+            failureCategories[subscription.id] = nil
             refreshPhases[subscription.id] = nil
             lastSuccessfulRefreshes[subscription.id] = nil
             // Another scene may already have removed the subscription, leaving
@@ -281,6 +294,17 @@ final class FeedReaderModel: ObservableObject {
         } catch {
             message = "購読を削除できませんでした: \(error.localizedDescription)"
         }
+    }
+
+    var failedFeedCount: Int { subscriptions.filter { failureByFeed[$0.id] != nil }.count }
+
+    var feedFailureSummary: String? {
+        let failures = subscriptions.filter { failureByFeed[$0.id] != nil }
+        guard !failures.isEmpty else { return nil }
+        if failures.allSatisfy({ failureCategories[$0.id] == .offline }) {
+            return "\(failures.count)件でオフライン。保存済み記事は読めます。"
+        }
+        return "\(failures.count)/\(subscriptions.count)件のフィードに問題があります。管理画面で確認できます。"
     }
 
     var refreshProgress: String {
@@ -423,7 +447,7 @@ final class FeedReaderModel: ObservableObject {
         catch { message = "保存済み記事の再読み込みに失敗しました: \(error.localizedDescription)"; return }
         let phases = targets.compactMap { refreshPhases[$0.id] }
         if phases.contains(.failed) {
-            message = "一部のフィードを更新できませんでした。フィードの状況から再試行できます。"
+            message = "一部のフィードを更新できませんでした。管理画面から再試行できます。"
         } else if phases.contains(.updated) {
             message = "\(phases.filter { $0 == .updated }.count)件のフィードから内容を保存しました。"
         } else if phases.contains(.unchanged) {
@@ -435,9 +459,12 @@ final class FeedReaderModel: ObservableObject {
         let id = completion.subscription.id
         guard acceptsRefresh(id, epoch: completion.epoch) else { return }
         var contentSaved = false
+        var receivedResponse = false
         do {
             let phase: FeedRefreshPhase
-            switch try completion.result.get() {
+            let response = try completion.result.get()
+            receivedResponse = true
+            switch response {
             case .notModified:
                 phase = .unchanged
             case .updated(let feed, let eTag, let lastModified):
@@ -460,6 +487,7 @@ final class FeedReaderModel: ObservableObject {
             guard acceptsRefresh(id, epoch: completion.epoch) else { return }
             refreshPhases[id] = phase
             failureByFeed[id] = nil
+            failureCategories[id] = nil
             try await reloadCache()
             refreshSearchPreservingResults()
         } catch {
@@ -469,7 +497,10 @@ final class FeedReaderModel: ObservableObject {
                 return
             }
             refreshPhases[id] = .failed
-            failureByFeed[id] = (contentSaved ? "記事は保存しましたが、更新情報の保存・再読み込みに失敗しました: " : "更新できませんでした: ") + error.localizedDescription
+            let category: FeedFailureCategory = receivedResponse ? .storage
+                : ((error as? URLError)?.code == .notConnectedToInternet ? .offline : .fetch)
+            failureCategories[id] = category
+            failureByFeed[id] = (contentSaved ? "記事は保存しましたが、更新情報の保存・再読み込みに失敗しました: " : category.rawValue + ": ") + error.localizedDescription
             if contentSaved { try? await reloadCache() }
         }
     }
@@ -755,6 +786,7 @@ final class FeedReaderModel: ObservableObject {
         let currentIDs = Set(newSubscriptions.map(\.id))
         refreshPhases = refreshPhases.filter { currentIDs.contains($0.key) }
         failureByFeed = failureByFeed.filter { currentIDs.contains($0.key) }
+        failureCategories = failureCategories.filter { currentIDs.contains($0.key) }
         // The recent-article limit must not hide older saved bookmarks. Keep
         // the recent query's snapshot when both queries contain the same id.
         var snapshots = Dictionary(uniqueKeysWithValues: newArticles.map { ($0.id, $0) })
