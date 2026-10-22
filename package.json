@@ -43,7 +43,8 @@
         "micromark-extension-math": {
           "katex": "0.18.2"
         }
-      }
+      },
+      "markdown-it": "15.0.3"
     }
   }
 }
