@@ -86,6 +86,10 @@ open apple/.build/native/TsumikiText.app --args \
 ```
 
 Artifacts default to `apple/.build/native/`; set `TSUMIKI_MAC_BUNDLE_PATH` to use a separate bundle path.
+The packager stages the executable on the destination filesystem and renames it into place, so rebuilding
+while the old app is running does not truncate its executable. The next launch uses the new executable.
+Build or staging failures leave the previously published executable and metadata intact.
+The executable and metadata are replaced separately; this is not a transaction for the entire bundle.
 This is not an App Store distribution or a Developer ID-signed app.
 
 ## Build for the iOS Simulator
@@ -111,6 +115,11 @@ mise run apple:build
 
 These tasks and CI use `apple/scripts/check-native.sh`. `TSUMIKI_SWIFT_SCRATCH_PATH` and
 `TSUMIKI_SWIFT_CACHE_PATH` override `.local-state/swift-build` and `.local-state/swift-cache`.
+
+`apple:test` first uses Xcode's Clang to build tiny native fixtures and runs the real bundle packager.
+It checks same-version and changed-version launches while an older process remains running, repeated
+publication, and preservation of the previous executable and metadata after build or staging failure.
+The Swift tests then run.
 
 Tests cover answer persistence, textbook-version separation, saving the same answer again, rejection of conflicting overwrites,
 write failures and retries, preservation of corrupted data, and table-of-contents navigation during a save.

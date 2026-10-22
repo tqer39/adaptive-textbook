@@ -36,6 +36,9 @@ case "$task_profile" in
     require_tool xcrun
     xcrun --find swift >/dev/null 2>&1 || missing 'Swift toolchain is unavailable'
     swift --version || missing 'Swift failed to start'
+    if [ "$task_profile" = apple-tests ]; then
+      xcrun --find clang >/dev/null 2>&1 || missing 'Clang for bundle regression is unavailable'
+    fi
     if [ "$task_profile" = ios-simulator ]; then
       require_tool xcodebuild
       xcrun --sdk iphonesimulator --show-sdk-path >/dev/null 2>&1 || missing 'iOS Simulator SDK is unavailable'

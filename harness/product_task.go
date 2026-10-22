@@ -60,7 +60,7 @@ func PrepareProductTask(input, output string, options ProductOptions) (Task, err
 		case "harness":
 			addControls("scripts/check-harness.sh", "harness/go.mod")
 		case "apple-tests":
-			addControls("apple/scripts/check-native.sh", "apple/Package.swift", ".agents/skills/apple-native-validation/SKILL.md")
+			addControls("apple/scripts/check-native.sh", "apple/scripts/test-macos-bundle.sh", "apple/scripts/build-macos-app.sh", "apple/Package.swift", ".agents/skills/apple-native-validation/SKILL.md")
 		case "macos-app":
 			addControls("apple/scripts/build-macos-app.sh", "apple/Package.swift", ".agents/skills/apple-native-validation/SKILL.md")
 			artifacts = []string{".local-state/product-build/macos/TsumikiText.app"}
