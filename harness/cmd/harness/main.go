@@ -15,10 +15,13 @@ import (
 func main() { os.Exit(run()) }
 func run() int {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: harness freeze-task -task ABS_PATH -output NEW_ABS_PATH -file ABS_PATH (repeat), or run|status|summary|resume|stop -state ABS_PATH [-task ABS_PATH | -run ID]")
+		fmt.Fprintln(os.Stderr, "usage: harness prepare-product -task ABS_PATH -output NEW_ABS_PATH -profile NAME (repeat), freeze-task -task ABS_PATH -output NEW_ABS_PATH -file ABS_PATH (repeat), or run|status|summary|resume|stop -state ABS_PATH [-task ABS_PATH | -run ID]")
 		return 2
 	}
 	verb := os.Args[1]
+	if verb == "prepare-product" {
+		return prepareProduct(os.Args[2:])
+	}
 	if verb == "freeze-task" {
 		return freezeTask(os.Args[2:])
 	}
@@ -104,6 +107,30 @@ func freezeTask(args []string) int {
 		return 1
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(task.ProtectedFiles); err != nil {
+		return 1
+	}
+	return 0
+}
+
+func prepareProduct(args []string) int {
+	flags := flag.NewFlagSet("prepare-product", flag.ContinueOnError)
+	input := flags.String("task", "", "existing trusted task JSON")
+	output := flags.String("output", "", "new canonical absolute task path")
+	timeout := flags.Int("check-timeout", 300, "timeout per added check; existing task limits remain unchanged")
+	var profiles, dirs, files, external pathsFlag
+	flags.Var(&profiles, "profile", "lint|harness|apple-tests|macos-app|ios-simulator; repeat")
+	flags.Var(&dirs, "tool-dir", "canonical absolute directory added to the clean host PATH; repeat")
+	flags.Var(&files, "file", "additional fixed control/reproducer; repeat")
+	flags.Var(&external, "external", "external validation requirement; repeat")
+	if flags.Parse(args) != nil || flags.NArg() != 0 {
+		return 2
+	}
+	task, err := harness.PrepareProductTask(*input, *output, harness.ProductOptions{Profiles: profiles, ToolDirectories: dirs, Files: files, ExternalPrerequisites: external, CheckTimeoutSeconds: *timeout})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if err := json.NewEncoder(os.Stdout).Encode(task); err != nil {
 		return 1
 	}
 	return 0

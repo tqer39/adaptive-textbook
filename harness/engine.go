@@ -94,6 +94,9 @@ func (e Engine) New(taskPath string) (*Run, error) {
 	if task.Implement != nil {
 		r.Phase = "implement"
 	}
+	if len(task.Preflight) > 0 {
+		r.Phase = "preflight"
+	}
 	if err := os.Mkdir(filepath.Join(e.Store.Directory, r.ID), 0o700); err != nil {
 		return nil, err
 	}
@@ -134,7 +137,7 @@ func (e Engine) Execute(ctx context.Context, id string, reconcileLocal bool) (*R
 	if err != nil {
 		return r, err
 	}
-	if r.Status == "accepted" || r.Status == "rejected" {
+	if r.Status == "accepted" || r.Status == "rejected" || r.Status == "awaiting-external-validation" {
 		if current != r.CodeHash {
 			return r, errors.New("code-modified-since-checkpoint")
 		}
@@ -281,6 +284,8 @@ func (e Engine) Execute(ctx context.Context, id string, reconcileLocal bool) (*R
 			} else {
 				result = execute(ctx, r.Task.Workspace, *r.Task.Repair, input, r.Task.LogLimitBytes, nil)
 			}
+		case "preflight":
+			result = execute(ctx, r.Task.Workspace, r.Task.Preflight[r.CheckIndex], input, r.Task.LogLimitBytes, nil)
 		case "checks":
 			result = execute(ctx, r.Task.Workspace, r.Task.Checks[r.CheckIndex], input, r.Task.LogLimitBytes, nil)
 		case "review":
@@ -309,6 +314,10 @@ func (e Engine) Execute(ctx context.Context, id string, reconcileLocal bool) (*R
 		}
 		r.Pending.ObservedHash = after
 		r.Evidence = append(r.Evidence, Evidence{Model: r.Pending.Model, Operation: r.Operations, Phase: r.Phase, CodeHash: before, AfterHash: after, ExitCode: result.exitCode, Outcome: result.outcome, StartedAt: started.Format(time.RFC3339Nano), DurationMillis: result.duration.Milliseconds(), Log: logName, LogHash: logHash})
+		if r.Phase == "preflight" {
+			index := r.CheckIndex
+			r.Evidence[len(r.Evidence)-1].PreflightIndex = &index
+		}
 		if r.Phase == "checks" {
 			index := r.CheckIndex
 			r.Evidence[len(r.Evidence)-1].CheckIndex = &index
@@ -347,6 +356,12 @@ func (e Engine) Execute(ctx context.Context, id string, reconcileLocal bool) (*R
 				return e.finish(r, "stopped", result.outcome) // Keep Pending for explicit recovery/reconciliation.
 			}
 			r.Pending = nil
+			if r.Phase == "preflight" {
+				return e.finish(r, "blocked", "prerequisite-failed")
+			}
+			if r.Phase == "checks" && r.Task.Checks[r.CheckIndex].PrerequisiteExitCode != 0 && result.exitCode == r.Task.Checks[r.CheckIndex].PrerequisiteExitCode {
+				return e.finish(r, "blocked", "prerequisite-failed")
+			}
 			if r.Phase == "checks" && result.outcome == "command-failed" {
 				r.Findings = []string{fmt.Sprintf("check-%d-failed", r.CheckIndex)}
 				if e.prepareRepair(r) {
@@ -366,6 +381,15 @@ func (e Engine) Execute(ctx context.Context, id string, reconcileLocal bool) (*R
 		r.Pending = nil
 		r.CodeHash = after
 		switch r.Phase {
+		case "preflight":
+			r.CheckIndex++
+			if r.CheckIndex == len(r.Task.Preflight) {
+				r.CheckIndex = 0
+				r.Phase = "checks"
+				if r.Task.Implement != nil {
+					r.Phase = "implement"
+				}
+			}
 		case "implement", "repair":
 			r.Phase = "checks"
 			r.CheckIndex = 0
@@ -426,6 +450,9 @@ func (e Engine) prepareRepair(r *Run) bool {
 }
 
 func (e Engine) finish(r *Run, status, reason string) (*Run, error) {
+	if status == "accepted" && len(r.Task.ExternalPrerequisites) > 0 {
+		status, reason = "awaiting-external-validation", "external-validation-required"
+	}
 	r.Status = status
 	r.Reason = reason
 	return r, e.Store.Save(r, false)

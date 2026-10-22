@@ -150,8 +150,53 @@ These are recorded cumulative request counters, not a single context-window size
 Model and command inputs carry the latest checks for the current source and a compact `history` summary;
 older raw evidence remains in the ledger and logs. Previous failures and repair counts are not concealed.
 Read the full log only when needed and verify its recorded SHA-256 before reusing it.
-Maintained product-profile generation and representative live-model comparisons remain follow-up work. Unavailable native UI or physical devices must remain explicit external prerequisites,
+Representative live-model comparisons remain follow-up work. Unavailable native UI or physical devices must remain explicit external prerequisites,
 not repeated source-repair attempts.
+
+## Maintained product tasks and prerequisites
+
+`prepare-product` adds selected host profiles to an existing trusted task without replacing its goal,
+acceptance criteria, original checks, implementation/reviewer configuration or budgets:
+
+```bash
+/private/tmp/textbook-harness prepare-product \
+  -task /absolute/path/task.json -output /absolute/path/task.product.json \
+  -profile lint -profile apple-tests -profile macos-app -profile ios-simulator \
+  -tool-dir /absolute/path/node/bin -check-timeout 600 \
+  -file /absolute/path/fixed-regression.swift
+/private/tmp/textbook-harness run -task /absolute/path/task.product.json -state /absolute/path/state
+```
+
+Available profiles are `lint`, `harness`, `apple-tests`, `macos-app` and `ios-simulator`.
+Supply canonical tool directories (for example the installed Go 1.27.1 bin directory for `harness`);
+the generated command uses those directories plus system directories, not inherited credentials or shell startup files.
+The original overall time/operation limits must accommodate the added preflight and check operations;
+the generator rejects an impossible minimum operation budget rather than raising it.
+Generation dispatches no command/model and writes only a new private task. The existing model opt-in and billing guard still apply.
+
+The task freezes the selected runners, controlling package/project metadata, applicable skill entrypoints,
+and any additional `-file` reproducers. Read the existing [harness](../.agents/skills/harness-development/SKILL.md)
+and [Apple validation](../.agents/skills/apple-native-validation/SKILL.md) procedures for scope selection.
+[`scripts/product-check.sh`](../scripts/product-check.sh) invokes existing repository checks directly in the same process group;
+it does not start a nested harness. CI and local Apple tasks share [`check-native.sh`](../apple/scripts/check-native.sh).
+Product builds use `.local-state/product-build/` so ordinary developer/QA output paths are preserved.
+The macOS/iOS profiles declare whole-bundle artifacts automatically.
+
+Optional `preflight` actions run as read-only, logged, budgeted operations before implementation or checks.
+A failed preflight becomes `blocked` / `prerequisite-failed` without dispatching implementation or repair.
+After resolving the prerequisite, resume retries that operation. Generated host checks repeat tool availability checks;
+reserved exit code 78 identifies a later environment failure and does not consume a repair cycle.
+Other failures preserve their actual exit codes and use the existing repair policy.
+`summary` exposes preflight indices, hash-linked logs and failure counts separately from source checks.
+Tool versions are printed into preflight logs. These probes do not install dependencies or verify every possible host condition.
+
+For goals requiring human/device work, repeat `-external "required observation"` or set the task's
+`externalPrerequisites` strings. After automated checks and review succeed, such a run ends as
+`awaiting-external-validation`, not `accepted`, and the CLI returns nonzero. Resume does not replay completed source/model work.
+These declarations are requirements, not attestations; this CLI has no override to mark them passed.
+Record the actual observations in a separate validation record tied to the same source and artifact identities.
+An unlocked screen, Simulator/physical-device interaction, translation availability and signing remain external conditions;
+a successful build or command-review fixture does not establish them or independent model review quality.
 
 ## Required check artifacts
 

@@ -148,8 +148,51 @@ macOSの開発ツールがsandbox外への一時書込を要求すると、担�
 モデルとコマンドへの入力には、現在のソースに対する最新checksと短い`history`要約を渡します。
 過去の証拠全体は台帳とログに残し、失敗数や修復回数を隠しません。
 詳細ログは必要なときに読み、再利用前に記録されたSHA-256を照合してください。
-保守された製品向けタスク生成と、代表タスクでの実モデル比較は後続作業です。
+代表タスクでの実モデル比較は後続作業です。
 ネイティブUIや実機が使えない場合は外部の前提条件として明示し、ソース修正を繰り返す理由にしません。
+
+## 製品タスクの定型生成と前提条件
+
+`prepare-product`は、既存の信頼するタスクの目標、受入条件、元のチェック、実装・レビュー設定、予算を置き換えず、
+選択したホスト検証を追加します。
+
+```bash
+/private/tmp/textbook-harness prepare-product \
+  -task /absolute/path/task.json -output /absolute/path/task.product.json \
+  -profile lint -profile apple-tests -profile macos-app -profile ios-simulator \
+  -tool-dir /absolute/path/node/bin -check-timeout 600 \
+  -file /absolute/path/fixed-regression.swift
+/private/tmp/textbook-harness run -task /absolute/path/task.product.json -state /absolute/path/state
+```
+
+対応するprofileは`lint`、`harness`、`apple-tests`、`macos-app`、`ios-simulator`です。
+canonicalなツールディレクトリを指定してください。例えば`harness`にはインストール済みGo 1.27.1のbinディレクトリを指定します。
+生成コマンドは指定ディレクトリとシステムのディレクトリを使い、認証情報やシェルの起動ファイルを継承しません。
+元の全体時間・操作数上限に、追加するpreflightとcheckの操作を含める必要があります。
+最低限の操作数が足りない場合は、生成時に拒否し、予算を自動で増やしません。
+生成はコマンドやモデルを実行せず、新しい非公開タスクだけを書きます。既存のモデル利用の明示的な有効化と課金ガードも維持します。
+
+選択したrunner、検証を制御するpackage／projectの設定、適用するskillの入口、追加の`-file`回帰テストを固定します。
+検証範囲は既存の[ハーネス手順](../.agents/skills/harness-development/SKILL.md)と
+[Apple検証手順](../.agents/skills/apple-native-validation/SKILL.md)に従って選びます。
+[`scripts/product-check.sh`](../scripts/product-check.sh)は同じプロセスグループで既存チェックを直接呼び、ハーネスを入れ子にしません。
+CIとローカルのAppleタスクは[`check-native.sh`](../apple/scripts/check-native.sh)を共有します。
+製品profileの出力は`.local-state/product-build/`に分け、通常の開発・QAの出力先を保持します。
+macOS／iOSのprofileはbundle全体を成果物として自動宣言します。
+
+省略可能な`preflight`は、実装やチェックより前に、読取専用・ログ付き・予算内の操作として実行します。
+失敗時は`blocked`／`prerequisite-failed`となり、実装や修復を呼びません。前提を整えた後のresumeで、その操作を再試行します。
+生成したホストチェックはツールの存在を再確認し、予約終了コード78で後から生じた環境不足を示します。この場合も修復回数を消費しません。
+それ以外の失敗は実際の終了コードを保持し、既存の修復方針を使います。
+`summary`はpreflightの番号、ハッシュ付きログ、失敗数をソースチェックとは別に示します。
+ツールのバージョンもpreflightログへ記録します。これらの確認は依存関係をインストールせず、ホストのあらゆる状態を検査するものでもありません。
+
+人や実機による確認が必要な目標では、`-external "必要な観測"`を繰り返すか、タスクの`externalPrerequisites`に記載します。
+自動チェックとレビューが成功しても`accepted`ではなく`awaiting-external-validation`で終わり、CLIは非ゼロを返します。
+resumeは完了したソース・モデル作業を繰り返しません。これらは要件の宣言であり、検証済みの申告ではありません。
+このCLIには宣言を合格へ上書きする機能はありません。同じソースと成果物の識別情報に結び付けた別の検証記録へ、実際の観測を残してください。
+画面ロック解除、Simulator／実機の操作、翻訳機能の利用可否、署名は外部の条件です。
+ビルド成功やコマンドレビューのfixtureは、それらの成功や独立したモデルレビューの品質を証明しません。
 
 ## チェックで必須とする成果物
 

@@ -15,29 +15,32 @@ import (
 
 // Task is a trusted local specification, never a command supplied by a model.
 type Task struct {
-	ProtectedFiles  []FileSnapshot `json:"protectedFiles,omitempty"`
-	Version         int            `json:"version"`
-	Name            string         `json:"name"`
-	Workspace       string         `json:"workspace"`
-	Goal            string         `json:"goal"`
-	Acceptance      []string       `json:"acceptance"`
-	Implement       *Action        `json:"implement,omitempty"`
-	Checks          []Action       `json:"checks"`
-	Review          Reviewer       `json:"review"`
-	Repair          *Action        `json:"repair,omitempty"`
-	MaxRepairCycles int            `json:"maxRepairCycles"`
-	TimeoutSeconds  int            `json:"timeoutSeconds"`
-	LogLimitBytes   int            `json:"logLimitBytes"`
-	MaxOperations   int            `json:"maxOperations"`
+	Preflight             []Action       `json:"preflight,omitempty"`
+	ExternalPrerequisites []string       `json:"externalPrerequisites,omitempty"`
+	ProtectedFiles        []FileSnapshot `json:"protectedFiles,omitempty"`
+	Version               int            `json:"version"`
+	Name                  string         `json:"name"`
+	Workspace             string         `json:"workspace"`
+	Goal                  string         `json:"goal"`
+	Acceptance            []string       `json:"acceptance"`
+	Implement             *Action        `json:"implement,omitempty"`
+	Checks                []Action       `json:"checks"`
+	Review                Reviewer       `json:"review"`
+	Repair                *Action        `json:"repair,omitempty"`
+	MaxRepairCycles       int            `json:"maxRepairCycles"`
+	TimeoutSeconds        int            `json:"timeoutSeconds"`
+	LogLimitBytes         int            `json:"logLimitBytes"`
+	MaxOperations         int            `json:"maxOperations"`
 }
 
 type Action struct {
-	Artifacts      []string     `json:"artifacts,omitempty"`
-	Kind           string       `json:"kind,omitempty"`
-	Command        []string     `json:"command,omitempty"`
-	Codex          *CodexConfig `json:"codex,omitempty"`
-	Instructions   string       `json:"instructions,omitempty"`
-	TimeoutSeconds int          `json:"timeoutSeconds"`
+	PrerequisiteExitCode int          `json:"prerequisiteExitCode,omitempty"`
+	Artifacts            []string     `json:"artifacts,omitempty"`
+	Kind                 string       `json:"kind,omitempty"`
+	Command              []string     `json:"command,omitempty"`
+	Codex                *CodexConfig `json:"codex,omitempty"`
+	Instructions         string       `json:"instructions,omitempty"`
+	TimeoutSeconds       int          `json:"timeoutSeconds"`
 }
 
 func (a Action) isCodex() bool { return a.Kind == "codex" }
@@ -164,6 +167,16 @@ func validCommand(command []string) bool {
 }
 
 func (t Task) validate() error {
+	if len(t.Preflight) > 20 || len(t.ExternalPrerequisites) > 20 {
+		return errors.New("prerequisite-limit")
+	}
+	seenPrerequisites := map[string]bool{}
+	for _, requirement := range t.ExternalPrerequisites {
+		if len(requirement) == 0 || len(requirement) > 2000 || seenPrerequisites[requirement] {
+			return errors.New("external-prerequisite-invalid")
+		}
+		seenPrerequisites[requirement] = true
+	}
 	if err := t.validateArtifacts(); err != nil {
 		return err
 	}
@@ -203,7 +216,18 @@ func (t Task) validate() error {
 		}
 		return nil
 	}
+	for _, a := range t.Preflight {
+		if a.isCodex() || len(a.Artifacts) > 0 || a.PrerequisiteExitCode != 0 {
+			return errors.New("preflight-must-be-read-only-command")
+		}
+		if err := check(a); err != nil {
+			return err
+		}
+	}
 	for _, a := range t.Checks {
+		if a.PrerequisiteExitCode < 0 || a.PrerequisiteExitCode > 255 {
+			return errors.New("prerequisite-exit-code-invalid")
+		}
 		if a.isCodex() {
 			return errors.New("checks-must-be-local-commands")
 		}
@@ -213,6 +237,9 @@ func (t Task) validate() error {
 	}
 	for _, a := range []*Action{t.Implement, t.Repair} {
 		if a != nil {
+			if a.PrerequisiteExitCode != 0 {
+				return errors.New("prerequisite-code-only-on-checks")
+			}
 			if err := check(*a); err != nil {
 				return err
 			}

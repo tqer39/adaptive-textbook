@@ -10,11 +10,11 @@ run = "bash scripts/check-harness.sh"
 
 [tasks."apple:test"]
 description = "Swift共通コアのローカルテスト"
-run = "swift test --package-path apple --scratch-path .local-state/swift-build --cache-path .local-state/swift-cache"
+run = "sh apple/scripts/check-native.sh test"
 
 [tasks."apple:build"]
 description = "macOS向けSwiftUIアプリをビルド"
-run = "swift build --package-path apple --scratch-path .local-state/swift-build --cache-path .local-state/swift-cache"
+run = "sh apple/scripts/check-native.sh build"
 
 [tasks."apple:benchmark"]
 description = "10万記事のDB読取が全測定で100ms未満か検証"
