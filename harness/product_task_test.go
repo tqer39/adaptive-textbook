@@ -17,7 +17,7 @@ func productFixture(t *testing.T) (Engine, string, Task, string) {
 		t.Fatal(err)
 	}
 	root := filepath.Dir(cwd)
-	for _, relative := range []string{"scripts/product-check.sh", "AGENTS.md", ".agents/skills/harness-development/SKILL.md", ".agents/skills/independent-review/SKILL.md", "package.json", "package-lock.json", "scripts/check-docs.mjs", "docs/rules/documentation.md"} {
+	for _, relative := range []string{"scripts/product-check.sh", "AGENTS.md", ".agents/skills/harness-development/SKILL.md", ".agents/skills/independent-review/SKILL.md", "package.json", "package-lock.json", "scripts/check-docs.mjs", "docs/rules/documentation.md", "apple/scripts/check-native.sh", "apple/scripts/test-macos-bundle.sh", "apple/scripts/build-macos-app.sh", "apple/Package.swift", ".agents/skills/apple-native-validation/SKILL.md"} {
 		data, err := os.ReadFile(filepath.Join(root, relative))
 		if err != nil {
 			t.Fatal(err)
@@ -140,4 +140,40 @@ func TestProductApplePreflightRefusesNonMacHost(t *testing.T) {
 	}
 	_ = e
 	_ = path
+}
+
+func TestAppleProfileProtectsBundleRegressionAndPackager(t *testing.T) {
+	for _, relative := range []string{"apple/scripts/test-macos-bundle.sh", "apple/scripts/build-macos-app.sh"} {
+		t.Run(relative, func(t *testing.T) {
+			e, input, task, tools := productFixture(t)
+			output := filepath.Join(filepath.Dir(input), "apple.json")
+			if _, err := PrepareProductTask(input, output, ProductOptions{Profiles: []string{"apple-tests"}, ToolDirectories: []string{tools}, CheckTimeoutSeconds: 5}); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(task.Workspace, relative), []byte("#!/bin/sh\nexit 0\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := e.New(output); err == nil || err.Error() != "protected-file-modified" {
+				t.Fatalf("nested bundle control mutation accepted: %v", err)
+			}
+		})
+	}
+}
+
+func TestAppleTestsPreflightRequiresBundleCompiler(t *testing.T) {
+	_, _, task, tools := productFixture(t)
+	for name, body := range map[string]string{
+		"uname": "#!/bin/sh\necho Darwin\n",
+		"swift": "#!/bin/sh\necho fixture-swift\n",
+		"xcrun": "#!/bin/sh\n[ \"$2\" = swift ]\n",
+	} {
+		if err := os.WriteFile(filepath.Join(tools, name), []byte(body), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	command := []string{"/usr/bin/env", "PATH=" + tools + ":/usr/bin:/bin", "/bin/sh", filepath.Join(task.Workspace, "scripts/product-check.sh"), "preflight", "apple-tests"}
+	result := execute(context.Background(), task.Workspace, Action{Command: command, TimeoutSeconds: 3}, nil, 4096, nil)
+	if result.exitCode != 78 || !strings.Contains(string(result.stderr), "Clang for bundle regression") {
+		t.Fatalf("missing bundle compiler reached source checks: %+v", result)
+	}
 }

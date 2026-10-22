@@ -86,6 +86,10 @@ open apple/.build/native/TsumikiText.app --args \
 ```
 
 成果物の既定の保存先は `apple/.build/native/` です。別のbundleパスを使う場合は`TSUMIKI_MAC_BUNDLE_PATH`で指定します。
+配置スクリプトは出力先と同じファイルシステム上に実行ファイルを準備し、renameで置き換えます。
+旧アプリが動いている間に再ビルドしても、その実行ファイルを直接上書きせず、次の起動から新しい実行ファイルを使います。
+ビルドや配置準備が失敗した場合、以前の実行ファイルとメタデータを保持します。
+実行ファイルとメタデータは個別に置き換えるため、バンドル全体のトランザクションではありません。
 App Store 配布物や Developer ID 署名済みアプリではありません。
 
 ## iOS Simulator 用ビルド
@@ -111,6 +115,11 @@ mise run apple:build
 
 これらのタスクとCIは`apple/scripts/check-native.sh`を使います。`TSUMIKI_SWIFT_SCRATCH_PATH`と
 `TSUMIKI_SWIFT_CACHE_PATH`で、既定の`.local-state/swift-build`と`.local-state/swift-cache`を変更できます。
+
+`apple:test`は最初にXcodeのClangで小さなネイティブ検証用実行ファイルを作り、実際の配置スクリプトを実行します。
+旧プロセスの動作中に同じ版・変更した版を配置して起動できること、繰り返し配置できること、
+ビルドや配置準備の失敗時に以前の実行ファイルとメタデータが保持されることを確認します。
+続けてSwiftのテストを実行します。
 
 回答の永続化、教材版の分離、同一回答の再保存、異なる内容による上書き拒否、
 書込失敗と再試行、破損データの保持、保存中の目次移動を検証します。

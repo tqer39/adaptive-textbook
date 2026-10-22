@@ -13,7 +13,9 @@ if [ "$#" -ne 1 ]; then
   exit 2
 fi
 case "$1" in
-  test) exec swift test --package-path "$task_package_directory" --scratch-path "$task_scratch_path" --cache-path "$task_cache_path" ;;
+  test)
+    sh "$task_script_directory/test-macos-bundle.sh"
+    exec swift test --package-path "$task_package_directory" --scratch-path "$task_scratch_path" --cache-path "$task_cache_path" ;;
   build) exec swift build --package-path "$task_package_directory" --scratch-path "$task_scratch_path" --cache-path "$task_cache_path" ;;
   ios-build)
     exec xcodebuild -project "$task_package_directory/TsumikiText.xcodeproj" \

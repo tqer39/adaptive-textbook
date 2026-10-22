@@ -10,8 +10,13 @@ task_bundle_path=${TSUMIKI_MAC_BUNDLE_PATH:-$task_package_directory/.build/nativ
 swift build --package-path "$task_package_directory" --scratch-path "$task_scratch_path" --cache-path "$task_cache_path" -c release
 task_binary_directory=$(swift build --package-path "$task_package_directory" --scratch-path "$task_scratch_path" --cache-path "$task_cache_path" -c release --show-bin-path)
 mkdir -p "$task_bundle_path/Contents/MacOS"
-cp "$task_binary_directory/TsumikiText" "$task_bundle_path/Contents/MacOS/TsumikiText"
-cat > "$task_bundle_path/Contents/Info.plist" <<'PLIST'
+# Never truncate an executable that a running app may still have mapped.
+# Stage on the destination filesystem, then rename a new inode into place.
+task_stage_directory=$(mktemp -d "$task_bundle_path/Contents/.bundle-stage.XXXXXX")
+trap 'rm -rf "$task_stage_directory"' EXIT
+trap 'exit 1' HUP INT TERM
+cp "$task_binary_directory/TsumikiText" "$task_stage_directory/TsumikiText"
+cat > "$task_stage_directory/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -25,4 +30,7 @@ cat > "$task_bundle_path/Contents/Info.plist" <<'PLIST'
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
+# All build/copy/metadata preparation finishes before touching published files.
+mv -f "$task_stage_directory/Info.plist" "$task_bundle_path/Contents/Info.plist"
+mv -f "$task_stage_directory/TsumikiText" "$task_bundle_path/Contents/MacOS/TsumikiText"
 printf '%s\n' "$task_bundle_path"
