@@ -1,43 +1,45 @@
-# 図の表現とドリルダウン案
+# Diagram presentation and drill-down proposals
 
-これは追加設計の検討です。今回の実装は用語・状態色・到達目標・図の予想とふりかえりまでです。
-Three.js、Mermaid、React Flow の導入や、4段階ドリルダウン全体の実装は含みません。
-自作 SVG だけに限定せず、理解を助ける操作、アクセシビリティ、スマホ負荷で選びます。
+[English](visual-expression.md) | [日本語](visual-expression.ja.md)
 
-## CAA のドリルダウン
+This document considers additional designs. The current implementation covers terminology, status colors, learning outcomes, and predictions and reflections around diagrams.
+It does not include adding Three.js, Mermaid, or React Flow, or implementing the full four-level drill-down.
+The choice is not limited to custom SVG: it should depend on interactions that support understanding, accessibility, and the load on smartphones.
 
-全体シーケンス → DNS 探索 → 採用 RRset の内訳 → 判定理由の順に、同じ設定へ近づきます。
+## CAA drill-down
 
-1. 発行前の全体図：CAA 確認を選ぶと、問い合わせ対象名の探索を開く。
-2. 探索：各候補名を順に追い、最初に集合が見つかった場所で止まる。
-3. RRset：採用した集合の issue / iodef と役割を、レコードごとに見る。
-4. 理由：どの issue がこの CA を許可するか、または issue がないため制限しないかを説明する。
+Move closer to the same configuration through the overall sequence, DNS lookup, the contents of the selected RRset, and the reason for the decision.
 
-パンくずと「元の図へ戻る」を必ず置き、対象名・CA・保存済み予想 ID・snapshot を全段階で保持します。
-戻る先の選択・スクロール・focus を復元し、探索後に親の禁止を加算する図にしません。
-自由探索で比較条件を変える場合は新条件を明示し、元予想の比較条件を変更しません。
-表示の選択操作は HTML button、Enter/Space と Back/Escape でも移動できます。
-reduced motion はアニメーションを停止し、文章と平面の図だけで同じ情報を読めるようにします。
+1. Overall pre-issuance diagram: selecting the CAA check opens the lookup for the requested name.
+2. Lookup: follow candidate names in order and stop at the first one where a set is found.
+3. RRset: inspect each record in the selected set, including issue / iodef and their roles.
+4. Reason: explain which issue authorizes this CA, or why the absence of issue leaves issuance unrestricted.
 
-## 適材の候補
+Always provide breadcrumbs and a way to return to the original diagram. Preserve the requested name, CA, saved prediction ID, and snapshot at every level.
+Restore the previous selection, scroll position, and focus when returning. The diagram must not add a parent's prohibition after the lookup has stopped.
+If free exploration changes the comparison conditions, show the new conditions explicitly without modifying those of the original prediction.
+Use HTML buttons for selection, with navigation also available through Enter/Space and Back/Escape.
+With reduced motion, stop animations and provide the same information through text and flat diagrams.
 
-| 候補 | 適する箇所 | 選定時に確認すること |
+## Candidate tools and suitable uses
+
+| Candidate | Suitable use | What to check when choosing |
 | --- | --- | --- |
-| Mermaid | 全体 sequence / 静的な探索の概観 | 携帯幅のラベル、出力後の説明導線、安全な構文制限 |
-| native SVG/CSS + HTML | 数ノードの採用位置強調、今回の模擬図 | keyboard 操作を HTML に置き、文字を縮小しない |
-| React Flow | ノードの選択、展開・折畳みが多い探索画面 | 現構成への React 導入コスト、読み上げ、日本語操作案内 |
-| Three.js | 空間で理解する価値がある別題材 | GPU/電池負荷、文字、キーボード、非3D代替 |
+| Mermaid | Overall sequences / static lookup overviews | Labels at phone widths, explanatory navigation after rendering, safe syntax restrictions |
+| Native SVG/CSS + HTML | Highlighting the selected location among a few nodes; the current simulated diagrams | Put keyboard interactions in HTML and avoid shrinking text |
+| React Flow | Lookup screens with many node selections, expansions, and collapses | Cost of adding React to the current setup, screen-reader support, Japanese interaction instructions |
+| Three.js | Other subjects where spatial presentation helps understanding | GPU/battery load, text, keyboard use, a non-3D alternative |
 
-CAA の探索は名前の階層と停止条件が中心なので、現段階では立体化の学習効果を示せていません。
-Three.js は候補として保持し、効果がある題材と比較試作してから採用します。
-この適材評価は設計上の判断で、性能の実測やユーザーテストをした結論ではありません。
-React Flow の公式資料には keyboard/focus/ARIA の機能がありますが、導入だけで適合は保証されません。
-Mermaid の入力も任意の JS/MDX とは分離し、リンク・クリック・HTML を無制限に許可しない方針です。
+CAA lookup centers on the name hierarchy and stopping conditions. At this stage, no learning benefit from a 3D presentation has been demonstrated.
+Keep Three.js as a candidate and compare prototypes on a subject where it may help before adopting it.
+This suitability assessment is a design judgment, not a conclusion from measured performance or user testing.
+The official React Flow documentation describes keyboard, focus, and ARIA features, but adoption alone does not guarantee conformance.
+Mermaid input should also remain separate from arbitrary JS/MDX; links, click handlers, and HTML should not be allowed without limits.
 
-2026-10-11 確認した公式入口：
+Official starting points checked on 2026-10-11:
 
-- [Mermaid](https://mermaid.js.org/intro/)：テキスト定義の図と sequence / flowchart
+- [Mermaid](https://mermaid.js.org/intro/): text-defined diagrams and sequence / flowchart diagrams
 - [React Flow accessibility](https://reactflow.dev/learn/advanced-use/accessibility)
-  keyboard・focus・ARIA の機能と設定
+  Keyboard, focus, and ARIA features and settings
 - [Three.js manual](https://threejs.org/manual/)
-  追加の3D検討時に利用する公式資料。今回3Dの性能・操作適性は未検証
+  Official documentation for any further 3D exploration. 3D performance and interaction suitability have not been verified in this work.

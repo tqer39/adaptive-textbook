@@ -1,60 +1,63 @@
-# Better Authと認証専用D1（ローカル統合）
+# Better Auth and an authentication-only D1 database (local integration)
 
-Better Auth 1.7.7をpackage.jsonで固定し、独自Google OAuth/sessionを置換しました。
-認証はD1、LLMのBYOK暗号化保存・個人別500円予算はAccountVault Durable Objectです。
-API Key pluginは使いません。Google tokenとLLM APIキーを同じ保管方式として扱いません。
-サービス名/slugは未確定の差分を保持し、今回新しく確定していません。
+[English](better-auth.md) | [日本語](better-auth.ja.md)
 
-初期アクセスは本人だけです。GOOGLE_ALLOWED_EMAILの1件を必須にし、
-署名検証済みのverified emailをcallbackと既存sessionで照合します。
-[本人限定Devの具体的な承認・入力項目](owner-only-setup.md)を参照してください。
+Better Auth 1.7.7 is pinned in package.json and replaces the custom Google OAuth/session implementation.
+Authentication uses D1; encrypted LLM BYOK storage and the per-person ¥500 budget use the AccountVault Durable Object.
+The API Key plugin is not used. Google tokens and LLM API keys are not treated as having the same storage requirements.
+Pending changes to the service name/slug have been preserved; this work did not finalize them.
 
-## 変更した認証境界
+Initial access is restricted to the owner. Exactly one GOOGLE_ALLOWED_EMAIL is required,
+and the signature-verified, verified email is checked in both callbacks and existing sessions.
+See the [specific approvals and inputs for owner-only Dev](owner-only-setup.md).
 
-workers/better-auth.mjsがBetter AuthのGoogle開始/callback/session/sign-outを呼びます。
-UIの状態/開始/中断/logout adapterはmetadataのみ返します。生のsession tokenやGoogle tokenは返しません。
-実キー入力・変更のgateはfalse、実senderは未登録です。ヘッダーやenv flagでtest identityを選べません。
-認証用D1/secret/Google設定/本人の許可emailが欠けるとauth-unconfigured、schema/DB障害時はauth-unavailableで停止します。
-静的教材の読書は認証DBへアクセスせず、既存のlocalStorage履歴をクラウドへ同期しません。
+## Updated authentication boundaries
 
-Google設定はopenid emailのみ。Better Authのuser表に必要なemailを取り、profile scopeは要求しません。
-表示名はLearner、imageはnullにし、Googleの名前/写真を保存しません。offline grant・追加scopeは要求しません。
-accountLinkingとemail/password・直接idToken認証の入口は無効です。
-Google providerのOAuth tokenをaccount.create/update.beforeで除去し、DBには保持しません。
-account.encryptOAuthTokens=trueも設定しますが、ID tokenを含む非保存はhookとDB検証で確認します。
-JavaScriptの一時コピーのzeroizeを約束しません。provider署名検証までtokenは一時的に必要です。
+workers/better-auth.mjs invokes Better Auth for Google sign-in initiation, callbacks, sessions, and sign-out.
+The UI adapters for status, initiation, cancellation, and logout return metadata only, never raw session or Google tokens.
+The real-key entry/change gate is false, and no live sender is registered. Headers and environment flags cannot select a test identity.
+Missing authentication D1/secret/Google settings/owner allowlisted email stops authentication with auth-unconfigured;
+schema or database failures stop it with auth-unavailable.
+Reading static lessons does not access the authentication database, and existing localStorage history is not synced to the cloud.
 
-採用版のGoogle開始URLは標準のままではnonceを生成しませんでした。
-公開plugin initでrequiresIdTokenNonceを結合し、公開verifyProviderIdTokenでRS256・issuer・audience・
-iat/exp・nonce・verified emailを検証してからプロフィール処理へ進みます。vendor patchはありません。
-不正署名・nonce/issuer/audience/期限・redirectをmock endpointで拒否する試験を用意しました。
-Googleの実endpoint受理、実clientのscope同意は未検証です。
+Google is configured for openid email only. The email required by Better Auth's user table is obtained without requesting the profile scope.
+The display name is Learner and image is null; Google's name and photo are not stored. No offline grant or additional scopes are requested.
+Account linking, email/password authentication, and direct idToken authentication entry points are disabled.
+Google provider OAuth tokens are removed by account.create/update.before and are not retained in the database.
+account.encryptOAuthTokens=true is also set, but non-retention, including ID tokens, is checked through hooks and database inspection.
+Immediate zeroization of temporary JavaScript copies is not promised. Tokens are temporarily needed for provider signature verification.
 
-## D1とsession失効
+The adopted version's default Google authorization URL did not generate a nonce.
+A public plugin init adds requiresIdTokenNonce, and the public verifyProviderIdToken verifies RS256, issuer, audience,
+iat/exp, nonce, and verified email before profile processing. There is no vendor patch.
+Tests reject invalid signatures, nonce/issuer/audience/expiry, and redirects through mock endpoints.
+Acceptance by Google's live endpoints and scope consent for the real client remain unverified.
 
-D1表はuser/session/account/verification/rateLimitとapp_auth_browser/app_auth_attemptです。
-後者はOAuthの暗号処理を置き換えず、browser cookie・CSRF・試行epoch・10分の期限だけを管理します。
-stateはhashで記録し、callback前に原子的UPDATEで一回だけclaimします。
-Better Authのstate/verifier/nonceは暗号化cookieへ保存し、D1に平文verifierを残しません。
-OAuth state cookieだけでは再送を防げると扱わず、D1のclaimも必須にします。
+## D1 and session revocation
 
-sessionはBetter AuthのDB保存、固定1時間、自動延長なし、cookie cache無効です。
-Better Authの標準session.tokenはDBに保存されるため、D1権限・backup・ログ保護は本番運用で確認します。
-アプリのbrowser cookieは__Host-、Better Auth cookieは__Secure-で、
-いずれもSecure/HttpOnly/SameSite=Lax/Path=/、cross-domain cookieは使いません。
-D1はsession.appBrowser/appEpoch/appAttemptを持ち、client入力を許可しません。
-中断/logout/再ログインはepochを進めてsessionを削除し、遅着callbackのsession作成・確定を拒否します。
-作成直前のhookだけに依存せず、保護APIでもDB sessionと現在epochを再確認します。
-DB障害時にcookieだけやメモリ状態へfallbackしません。毎回の失効確認ではcookie cacheを使いません。
-logoutはこのアプリの失効で、Google全体のlogoutやgrant取り消しではありません。
+D1 tables are user/session/account/verification/rateLimit and app_auth_browser/app_auth_attempt.
+The latter do not replace OAuth cryptography; they manage only the browser cookie, CSRF, attempt epoch, and 10-minute expiry.
+State is recorded as a hash and claimed exactly once with an atomic UPDATE before the callback.
+Better Auth state/verifier/nonce are stored in an encrypted cookie; no plaintext verifier remains in D1.
+The OAuth state cookie alone is not considered replay protection; the D1 claim is also required.
 
-verified user.idから `better-auth:<id>` のsubjectを作り、session.idを既存principalへ渡します。
-AccountVault DOはsubject hashから決まり、メール・Googleプロフィール・client指定userIdを所有者にしません。
-credential APIのsession別CSRF・所有者固定・版・不明予算保持は維持しています。
-外部アカウント/実データが未作成なので、旧 `google:<sub>`や独自sessionの移行は実装しません。
-アカウント削除/再作成と費用照合の運用は、この置換で完了した扱いにはしません。
+Sessions are stored in Better Auth's database, last a fixed one hour, do not automatically extend, and have cookie caching disabled.
+Better Auth's standard session.token is stored in the database, so D1 permissions, backups, and log protection need production review.
+Application browser cookies use `__Host-`; Better Auth cookies use `__Secure-`.
+Both use Secure/HttpOnly/SameSite=Lax/Path=/; cross-domain cookies are not used.
+D1 stores session.appBrowser/appEpoch/appAttempt, with no client-supplied values allowed.
+Cancellation, logout, and re-login advance the epoch and delete sessions, rejecting session creation and finalization by late callbacks.
+Protected APIs recheck both the database session and current epoch, rather than relying solely on the hook before creation.
+Database failures do not fall back to cookies alone or in-memory state. Cookie caching is not used for per-request revocation checks.
+Logout revokes this application's session; it does not log out of Google globally or revoke the Google grant.
 
-## ローカル検証と実行
+A `better-auth:<id>` subject is derived from verified user.id, and session.id is passed to the existing principal.
+The AccountVault DO is selected from the subject hash, not an email, Google profile, or client-supplied userId.
+Per-session CSRF, fixed ownership, revisions, and retained reservations for unknown costs in credential APIs are preserved.
+Because no external accounts or real data have been created, migration from the old `google:<sub>` or custom sessions is not implemented.
+Account deletion/recreation and cost-reconciliation operations are not considered complete through this replacement.
+
+## Local verification and execution
 
 ```bash
 npm ci
@@ -63,47 +66,47 @@ npm run workers:local
 npm run test:workers
 ```
 
-workers:localは外部fetch・認証設定を読む処理を無効にしたMiniflare配信です。
-実キー・Google接続は有効になりません。Ctrl+Cで停止します。
-テストは一時D1・一時DO・Googleに通用しない署名鍵/ダミーsecretと、mock token/JWKS endpointだけを使います。
-テスト終了時に一時DBを除去し、実Cloudflareアカウントや既存秘密を探索しません。
+workers:local serves through Miniflare with external fetches and authentication-setting reads disabled.
+It does not enable real keys or Google connections. Stop it with Ctrl+C.
+Tests use only temporary D1/DO instances, signing keys/dummy secrets that cannot authenticate with Google, and mock token/JWKS endpoints.
+Temporary databases are removed after tests; real Cloudflare accounts and existing secrets are not searched.
 
-migrations/auth/0001_better_auth.sqlは固定版からローカル生成、0002_app_guard.sqlはアプリの安全境界です。
-生成を再現する場合は `node scripts/auth-schema.mjs`（一時Miniflare D1のみ）を使います。
-本番requestはmigrationを自動実行しません。wrangler.jsoncのAUTH_DBは実database_id未設定です。
-旧LoginState DO/AUTH_SESSIONS/AUTH_STATE_KEYRINGは不要になりました。
+migrations/auth/0001_better_auth.sql was generated locally from the pinned version; 0002_app_guard.sql defines application safety boundaries.
+To reproduce generation, use `node scripts/auth-schema.mjs` (temporary Miniflare D1 only).
+Production requests do not run migrations automatically. AUTH_DB in wrangler.jsonc has no real database_id configured.
+The old LoginState DO/AUTH_SESSIONS/AUTH_STATE_KEYRING are no longer needed.
 
-検証：mise run lint・typecheck・frontend/Workers build、frontend33件・server32件・Workers24件が成功。
-Chromium82件・インストール済みChrome82件も成功しました。320px/390px/1440pxの既存QAを含みます。
-一時Workers配信で390px/1440pxの実キー無効・auth/session 503を確認し、画像を取得後に停止しました。
-本番CPU・Google受理・Cookie配送・料金は未検証です。
+Verification succeeded for mise run lint, typecheck, frontend/Workers builds, 33 frontend tests, 32 server tests, and 24 Workers tests.
+All 82 Chromium tests and 82 installed-Chrome tests also passed, including existing QA at 320px/390px/1440px.
+Temporary Workers serving confirmed disabled real keys and auth/session 503 at 390px/1440px; screenshots were taken and the server stopped.
+Production CPU, Google acceptance, cookie delivery, and charges remain unverified.
 
-## 実環境へ進む最小手順
+## Minimum steps toward a live environment
 
-1. 保留中の名称/公開先が確定した後、HTTPS APP_ORIGINと本人限定Devのアクセス保護を確認する。
-2. 本人がGoogle Web client/test usersを登録する。redirectはAPP_ORIGIN＋/api/auth/callback/google。
-   設定するのはGOOGLE_CLIENT_IDとGOOGLE_CLIENT_SECRET。必要scopeはopenid email。
-3. 本人承認後に認証用D1 AUTH_DBとmigration、AccountVault DO bindingを環境別に準備する。
-   BETTER_AUTH_SECRETとBYOK_ENCRYPTION_KEYRINGを別々に安全に設定し、backup/rotationを確認する。
-4. 本人限定Devで実認証・cookie・中断/logout/失効・保存/復旧を確認してから実キー入力gateをレビューする。
-5. 個人別500円のDB/基盤費とAI費上界・送信条件を確認し、別途承認された小さい実API試験へ進む。
+1. After the pending name/publication destination is finalized, confirm HTTPS APP_ORIGIN and owner-only Dev access protection.
+2. The owner registers a Google Web client/test users. The redirect is APP_ORIGIN plus /api/auth/callback/google.
+   Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. Required scopes are openid email.
+3. With owner approval, provision authentication D1 AUTH_DB/migrations and the AccountVault DO binding separately for each environment.
+   Set BETTER_AUTH_SECRET and BYOK_ENCRYPTION_KEYRING securely and separately, and verify backups/rotation.
+4. Verify real authentication, cookies, cancellation/logout/revocation, and storage/recovery in owner-only Dev before reviewing the real-key entry gate.
+5. Confirm upper bounds on per-person database/infrastructure and AI costs within ¥500, plus sending conditions, before a separately approved small live API test.
 
-秘密をchat/repo/logへ貼りません。OAuth登録・実grant・実秘密設定・クラウド作成・
-購入・push/PR/deploy・実Google/LLM送信は今回行っていません。
+Do not paste secrets into chat/repositories/logs. This work did not perform OAuth registration, real grants, real-secret configuration,
+cloud resource creation, purchases, push/PR/deploy, or live Google/LLM requests.
 
-## 実環境で残る確認
+## Remaining live-environment checks
 
-Mac StudioのMiniflare試験は本番のCPU/遅延/料金保証ではありません。
-Googleの署名検証・state暗号化・D1/DOアクセスのCPUとcold startを、本人限定Devの実metricsで確認する必要があります。
-ローカルbundleは約2.48MB、gzip約421KBです。
-Workers FreeのCPU上限を満たしたとは扱いません。bundleサイズの確認もCPU試験の代わりにはなりません。
-D1/DOの費用を個人の固定運用費へ含め、適用料金・無料枠・課金の上界を確認します。
-本番のCookie配送、D1障害/backup/PITR、実課金、Windows/Linux実機は未検証です。
+Mac Studio Miniflare tests do not guarantee production CPU, latency, or costs.
+Google signature verification, state encryption, D1/DO CPU usage, and cold starts need measurement in owner-only Dev.
+The local bundle is approximately 2.48MB, or approximately 421KB gzipped.
+Compliance with Workers Free CPU limits is not established; bundle-size checks do not replace CPU tests.
+Include D1/DO costs in each person's fixed operating costs and confirm applicable prices, free allowances, and charge ceilings.
+Production cookie delivery, D1 failures/backups/PITR, real billing, and physical Windows/Linux machines remain unverified.
 
-公式資料（2026-10-11確認）：
+Official references (checked 2026-10-11):
 
 - [Better Auth Google](https://better-auth.com/docs/authentication/google)
-- [DBとD1 migration](https://better-auth.com/docs/concepts/database)
-- [Session失効とcookie cache](https://better-auth.com/docs/concepts/session-management)
-- [公開plugin API](https://better-auth.com/docs/concepts/plugins)
+- [Database and D1 migrations](https://better-auth.com/docs/concepts/database)
+- [Session revocation and cookie caching](https://better-auth.com/docs/concepts/session-management)
+- [Public plugin API](https://better-auth.com/docs/concepts/plugins)
 - [Workers limits](https://developers.cloudflare.com/workers/platform/limits/)

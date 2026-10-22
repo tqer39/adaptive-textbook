@@ -1,89 +1,91 @@
-# Mac Chrome の初回タイムアウト調査
+# Investigating the initial Mac Chrome timeouts
 
-## 結論
+[English](browser-timeout-investigation.md) | [日本語](browser-timeout-investigation.ja.md)
 
-初回 2 件の原因は未特定です。直列通過を原因解消とは扱いません。
-最新版 v1.5（4852a0a）では、初回と同じ 2 worker の反復でも再現しませんでした。
-アプリの race や runner の資源不足を示す証拠は得られておらず、アプリコードは変更していません。
+## Conclusion
 
-テスト画像の共有出力先は実際に見つかったため、テストごとの保存先へ修正しました。
-ただし、その衝突が初回 timeout の原因だったとは断定しません。
-worker を 1 に固定する根拠はないため、通常 Chromium・インストール済み Chrome とも 2 に明示固定します。
-30 秒の test timeout と retry なしは維持し、失敗時 trace を保存します。
+The cause of the initial two failures remains unidentified. Passing sequentially is not treated as a resolution.
+On the latest v1.5 (4852a0a), repetitions with the same two-worker setup as the initial run did not reproduce them.
+No evidence was obtained of an application race or insufficient runner resources, and the application code was not changed.
 
-## 初回ログで確認できること
+A shared test-image output destination was found and changed to a destination specific to each test.
+However, that collision is not established as the cause of the initial timeouts.
+There is no basis for fixing the worker count at one, so both regular Chromium and installed Chrome are explicitly set to two workers.
+The 30-second test timeout and no-retry policy remain, with traces retained on failure.
 
-- desktop の旧回答保持・運用例テスト
-  - 名前：`new predictions, applications and old answers survive the version update`
-  - 回答・旧履歴保持・3 件の結果表示の assertion は通過済み。
-  - applications 画面の `page.screenshot({ fullPage: true })` で 30 秒 timeout。
-  - ログは fonts loaded まで進み、その後の画像取得が完了していません。
-- mobile の用語説明開閉テスト
-  - 名前：`term help preserves reading position, context and focus without scoring`
-  - Back → Forward 後、閉じるボタンの locator が一度解決された後に DOM から外れました。
-  - locator の再試行が完了せず、30 秒 timeout。
-  - 当時の page snapshot は説明画面がなく、読書画面と再開ボタンが表示されていました。
+## What the initial logs establish
 
-初回は trace と継続的な CPU/メモリ計測を採取していません。
-開発途中の厳密な source snapshot も未採取で、現在の反復結果だけでは当時の DOM 変化の理由を識別できません。
-当時の raw output はチャットの実行ログが根拠です。古い test-results は後の実行で置換されています。
+- Desktop test for retaining old answers and operational examples
+  - Name: `new predictions, applications and old answers survive the version update`
+  - Assertions for answers, retained old history, and three displayed results had already passed.
+  - `page.screenshot({ fullPage: true })` on the applications screen timed out after 30 seconds.
+  - The log reached fonts loaded, but image capture did not complete afterward.
+- Mobile test for opening and closing term help
+  - Name: `term help preserves reading position, context and focus without scoring`
+  - After Back → Forward, the close-button locator resolved once and then the element detached from the DOM.
+  - Locator retries did not complete, and the test timed out after 30 seconds.
+  - The page snapshot at that point had no explanation screen; it showed the reading screen and resume button.
 
-## 再現試験
+The initial run did not collect traces or continuous CPU/memory measurements.
+An exact source snapshot from that development stage was not captured either, so current repetition results cannot identify why the DOM changed then.
+The chat execution log is the evidence for the raw output from that run. Older test-results were replaced by later runs.
 
-すべてユーザーの Chrome profile へ接続せず、Playwright 所有の新しい context で実施しました。
-閲覧中の tmux サーバー・教材データ・ユーザーの localStorage は変更していません。
+## Reproduction tests
 
-- 修正前の保存先のまま、該当 2 ケース × PC/スマホ × 10 回、2 worker：40 件成功。
-  - retry・skip・flaky は 0。21.2 秒、各ケース 576–1042ms。
-  - 全 40 trace を取得。失敗した操作なし。
-  - console error は favicon.ico の 404 のみ。アプリの例外は観測されていません。
-- 保存先の分離後、同じケース × PC/スマホ × 5 回、2 worker：20 件成功、10.6 秒。
-- 保存先の分離後、Chrome の全 28 件、2 worker：成功、7.4 秒。
-- 通常 Chromium の全 28 件、2 worker：成功、6.1 秒。
-- lint・typecheck：成功。
+All tests used new Playwright-owned contexts without connecting to the user's Chrome profile.
+The tmux server serving the material being read, textbook data, and the user's localStorage were not changed.
 
-再現試験の JSON / trace / log は端末の一時領域に保存しています。
-`/tmp/caa-timeout-parallel.*`、`/tmp/caa-timeout-parallel/`、
-`/tmp/caa-timeout-isolated.*`、`/tmp/caa-timeout-isolated/` が該当します。
-一時領域のため長期保存は保証しません。
+- With the original output destinations, the two relevant cases × desktop/mobile × 10 repetitions, two workers: 40 passes.
+  - 0 retries, skips, or flaky cases. 21.2 seconds; individual cases took 576–1042ms.
+  - All 40 traces were captured. No operation failed.
+  - The only console error was a favicon.ico 404. No application exceptions were observed.
+- After separating output destinations, the same cases × desktop/mobile × 5 repetitions, two workers: 20 passes in 10.6 seconds.
+- After separating output destinations, all 28 Chrome cases, two workers: passed in 7.4 seconds.
+- All 28 regular Chromium cases, two workers: passed in 6.1 seconds.
+- lint and typecheck: passed.
 
-## 仮説の確認
+JSON, traces, and logs from the reproduction tests are stored in temporary storage on the machine:
+`/tmp/caa-timeout-parallel.*`, `/tmp/caa-timeout-parallel/`,
+`/tmp/caa-timeout-isolated.*`, and `/tmp/caa-timeout-isolated/`.
+Long-term retention is not guaranteed because these locations are temporary.
 
-### storage と port
+## Checking the hypotheses
 
-各テストは標準の page fixture を使い、BrowserContext はテストごとに独立しています。
-共有 storageState、persistent profile、グローバル page fixture はありません。
-[Playwright の context 分離](https://playwright.dev/docs/browser-contexts) と一致する構成です。
+### Storage and ports
 
-localhost:5173 は静的教材と Vite 配信を共有するだけで、学習履歴を保存する server API はありません。
-既存 server を再利用し、同じ port の server を二重起動する操作もありません。
-アプリ内の回答表示 Map と dialog Map はブラウザ側にあり、context 間で共有しません。
+Each test uses the standard page fixture, with an independent BrowserContext per test.
+There is no shared storageState, persistent profile, or global page fixture.
+This matches [Playwright's context isolation](https://playwright.dev/docs/browser-contexts).
 
-### 画像の保存先
+localhost:5173 only shares static material and Vite delivery; there is no server API that stores learning history.
+The existing server is reused, and no operation starts a second server on the same port.
+The application's answer-display Map and dialog Map are browser-side and are not shared across contexts.
 
-旧実装の term-help.png は PC/スマホ project が同じファイルへ書きました。
-ほかの画像も repeat/retry や異なる runner を並行実行すると同じファイルへ書く構成でした。
-すべて `testInfo.outputPath()` に変更し、test/project/repeat/retry ごとに保存先を分離しました。
-通常 Chromium と Chrome の outputDir も別にしています。
-[API](https://playwright.dev/docs/api/class-testinfo#test-info-output-path)
-を使用します。
+### Image destinations
 
-初回の desktop applications と mobile 用語の失敗位置は異なり、
-このファイル衝突で両方を説明できる証拠はありません。これは既知のテスト基盤改善です。
+In the old implementation, desktop/mobile projects wrote term-help.png to the same file.
+Other images also shared file destinations across repeats/retries or concurrent runs by different runners.
+All were changed to `testInfo.outputPath()` to separate destinations by test/project/repeat/retry.
+Regular Chromium and Chrome also have separate outputDir values.
+The [API](https://playwright.dev/docs/api/class-testinfo#test-info-output-path)
+provides this behavior.
 
-### 処理負荷と worker
+The initial desktop applications failure and mobile term-help failure occurred at different operations.
+There is no evidence that this file collision explains both. It is a known improvement to the test infrastructure.
 
-端末は 64GiB RAM・16 logical CPU。再現試験時に読み取りで資源情報を確認しました。
-これは初回の資源不足を否定する計測ではなく、初回の CPU/メモリ推移は不明です。
-現在の 2 worker 反復は短時間で通過し、worker を 1 に制限する根拠はありません。
+### Load and workers
 
-2 worker は元の実行条件を保ち、将来テストファイルが増えても同時 browser 数を無制限に増やさない上限です。
-[worker の動作](https://playwright.dev/docs/test-parallel) に従い、timeout 延長や retry で失敗を隠していません。
+The machine has 64GiB RAM and 16 logical CPUs. Resource information was checked read-only during the reproduction tests.
+This does not rule out a resource shortage in the initial run; CPU/memory trends from that run are unknown.
+The current two-worker repetitions pass quickly, providing no basis for limiting workers to one.
 
-## 次に再発した場合
+Two workers preserve the original execution conditions while placing an upper bound on concurrent browsers if more test files are added.
+Following [worker behavior](https://playwright.dev/docs/test-parallel), failures have not been hidden by extending timeouts or adding retries.
 
-`playwright.chrome.config.ts` で再現可能な設定を保存しました。
-失敗時の trace、DOM snapshot、navigation/console、画像取得 API の状態から、
-画面の再生成・履歴 traversal・画像取得停止を識別します。
-資源不足を疑う場合は、その再発時の CPU/メモリを同時記録して判断します。
-現段階では原因未特定の観測事項として残し、解消済みとはしません。
+## If it recurs
+
+Reproducible settings are saved in `playwright.chrome.config.ts`.
+Use failure traces, DOM snapshots, navigation/console logs, and image-capture API state to distinguish
+screen regeneration, history traversal, and stalled image capture.
+If a resource shortage is suspected, record CPU/memory at the same time as that recurrence before drawing a conclusion.
+For now, retain this as an observation with an unidentified cause, rather than calling it resolved.

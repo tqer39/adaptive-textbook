@@ -1,49 +1,51 @@
-# 開発用依存の監査記録
+# Development dependency audit record
 
-2026-10-10、CAA 試作 branch `prototype/caa-section` で再確認しました。
-全依存を対象に `npm audit` を実行しています。監査除外は設定していません。
+[English](dependency-audit.md) | [日本語](dependency-audit.ja.md)
 
-## 最初の 9 件の意味
+Rechecked on 2026-10-10 on the CAA prototype branch `prototype/caa-section`.
+`npm audit` covered all dependencies. No audit exclusions were configured.
 
-9 件は独立した 9 つの欠陥ではなく、根本原因 3 件と影響を受ける依存元の集計です。
-すべて開発用の `markdownlint-cli2@0.23.3` を起点とします。
+## What the initial nine findings meant
 
-- high: braces、micromatch、fast-glob、globby、markdownlint-cli2（5 件）
-- moderate: smol-toml（1 件）
-- low: katex、micromark-extension-math、markdownlint（3 件）
+The nine findings were not nine independent defects; they aggregated three root causes and their affected dependents.
+All originated from the development-only `markdownlint-cli2@0.23.3` dependency.
 
-## 修正版の適用
+- high: braces, micromatch, fast-glob, globby, markdownlint-cli2 (5 findings)
+- moderate: smol-toml (1 finding)
+- low: katex, micromark-extension-math, markdownlint (3 findings)
 
-`package.json` の scoped overrides で、lint に属する以下の 2 依存だけを更新しました。
-直接依存の変更や audit severity の除外はしていません。
+## Applying available fixes
+
+Scoped overrides in `package.json` updated only the following two lint dependencies.
+No direct dependencies were changed, and no audit severity was excluded.
 
 - smol-toml: 1.8.0 → 1.9.1
 - katex: 0.16.47 → 0.18.2
 
-同じ lockfile を `npm ci` で再インストールして確認しました。
-更新後の TOML `parse` と KaTeX `renderToString` の API 動作も確認しました。
-教材の renderer はこの 2 ライブラリを使用していません。
+The same lockfile was reinstalled with `npm ci` for verification.
+The updated TOML `parse` and KaTeX `renderToString` APIs were also checked.
+The lesson renderer uses neither library.
 
-### smol-toml（moderate）
+### smol-toml (moderate)
 
-経路: markdownlint-cli2 → smol-toml。
-TOML の通常のキーを多数含む入力で同期解析の CPU 使用量が二次的に増加します。
-修正版は 1.9.0 以降。CLI の TOML 設定解析に関係する問題です。
-今回は 1.9.1 へ更新して解消しました。
-[公式 advisory](https://github.com/advisories/GHSA-r4xh-jqrq-34v2)を確認しました。
+Path: markdownlint-cli2 → smol-toml.
+Synchronous parsing has quadratic CPU growth for inputs containing many ordinary TOML keys.
+The fix is available in 1.9.0 and later. The issue affects the CLI's TOML configuration parsing.
+Updating to 1.9.1 resolved it in this work.
+The [official advisory](https://github.com/advisories/GHSA-r4xh-jqrq-34v2) was reviewed.
 
-### KaTeX（low）
+### KaTeX (low)
 
-経路: markdownlint-cli2 → markdownlint → micromark-extension-math → katex。
-すでに prototype pollution が起きている環境で、継承された設定が
-trust 制限などを変える問題です。KaTeX 自体が汚染を発生させるものではありません。
-悪意ある数式を描画し、その HTML を web page に挿入する等の前提が必要です。
-修正版 0.18.2 へ更新して、この経路の計 3 件を解消しました。
-[公式 advisory](https://github.com/advisories/GHSA-238p-pmpm-9mq7)を確認しました。
+Path: markdownlint-cli2 → markdownlint → micromark-extension-math → katex.
+In an environment already affected by prototype pollution, inherited options can change restrictions such as trust.
+KaTeX itself does not cause the pollution.
+The issue requires conditions such as rendering a malicious formula and inserting its HTML into a web page.
+Updating to the fixed 0.18.2 resolved all three findings along this path.
+The [official advisory](https://github.com/advisories/GHSA-238p-pmpm-9mq7) was reviewed.
 
-## 修正版がない残件（high）
+## Remaining findings without an available fix (high)
 
-経路は次のとおりです。
+Dependency paths:
 
 ```text
 markdownlint-cli2@0.23.3
@@ -51,57 +53,58 @@ markdownlint-cli2@0.23.3
 └─ globby@16.2.4 → fast-glob@3.3.3 → micromatch → braces
 ```
 
-非常に深く入れ子にした brace パターンを与えると、再帰処理でスタックを使い切り
-lint の Node.js プロセスが停止する DoS です。
-[公式 advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)では
-影響範囲が `<=3.0.3`、修正版は None でした。
-npm registry の最新版も 3.0.3 で、通常更新では解消できません。
+Extremely deeply nested brace patterns can exhaust the stack through recursion,
+causing a denial of service that stops the lint Node.js process.
+The [official advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+listed affected versions as `<=3.0.3` and patched versions as None.
+The latest npm registry release was also 3.0.3, so a normal update could not resolve it.
 
-npm audit は影響元を含む 5 パッケージを high と数えます。
-根本原因は同じ braces の 1 欠陥です。
-CLI 最新版 0.23.3 でもこの依存があります。
-audit が提案する CLI 0.21.0 への変更は前回確認時に解消せず、採用していません。
+npm audit counts five affected packages, including dependents, as high severity.
+They share a single underlying braces defect.
+The latest CLI, 0.23.3, also had this dependency.
+The audit's suggested change to CLI 0.21.0 did not resolve it during the previous check and was not adopted.
 
-現在の lint の入力パターンは固定の `README.md docs/*.md` です。
-教科書本文、利用者回答、localStorage、HTTP リクエストを glob に渡す経路はありません。
-production bundle にも含まれません。
-一方、将来 CLI 引数・設定ファイルに外部由来の glob を入れる場合や、
-信頼できない repository 変更を lint する場合のプロセス停止リスクは残ります。
-今回、根拠なく安全と判断して監査を無視する設定は追加していません。
-修正版の公開後に更新するか、将来の CI 導入時に linter の実行方式を検討します。
+At the time of this audit, lint input patterns were fixed to `README.md docs/*.md`.
+For current documentation coverage, see the [documentation rules](rules/documentation.md) and `package.json`.
+No path passed textbook content, user answers, localStorage, or HTTP requests into globs.
+These dependencies were not included in the production bundle.
+However, process termination remained a risk if future CLI arguments/configuration accepted external globs,
+or when linting untrusted repository changes.
+No configuration was added to ignore the audit based on an unsupported claim of safety.
+The plan was to update after a fix was released or reconsider linter execution when introducing CI.
 
-## 修正後の検証
+## Verification after the fixes
 
-- `npm ci`: 成功、lockfile の再現性を確認
-- `mise run lint` / `npm run lint`: 成功
-- `npm run typecheck`: 成功
-- `npm test`: unit 5 件成功
-- `npm run test:browser`: desktop/mobile 計 10 件成功
-- `npm run build`: 成功
-- `npm audit`: high 5 件、moderate/low/critical は 0、終了コード 1
-- `npm audit --omit=dev`: 0 件、終了コード 0
+- `npm ci`: passed; lockfile reproducibility confirmed
+- `mise run lint` / `npm run lint`: passed
+- `npm run typecheck`: passed
+- `npm test`: 5 unit tests passed
+- `npm run test:browser`: 10 desktop/mobile tests passed in total
+- `npm run build`: passed
+- `npm audit`: 5 high findings; 0 moderate/low/critical; exit code 1
+- `npm audit --omit=dev`: 0 findings; exit code 0
 
-CAA の固定教材・履歴・認証の範囲は変更していません。
-ローカル URL は <http://127.0.0.1:5173/> のままです。
-外部 push / PR / 公開は行っていません。
+The fixed CAA lesson, history, and authentication scope were unchanged.
+The local URL remained <http://127.0.0.1:5173/>.
+No external push, PR, or publication was performed.
 
-## Workers依存追加後（2026-10-11）
+## After adding Workers dependencies (2026-10-11)
 
-Wrangler 4.149.0 / 対応Miniflare 5.20261006.1-alpha / esbuild 0.28.2とjoseを追加しました。
-再監査は同じmarkdownlint系のhigh 5件のみです。npm registryのbraces最新版は引き続き3.0.3でした。
-新しいWorkers/provider runtimeの脆弱性として分類していません。監査除外・force downgradeはしていません。
-インストール済みworkerd/esbuildはローカル試験で動作を確認しました。追加のglobal installや権限設定はありません。
+Wrangler 4.149.0, its matching Miniflare 5.20261006.1-alpha, esbuild 0.28.2, and jose were added.
+The repeat audit found only the same five high markdownlint-related findings. The npm registry's latest braces remained 3.0.3.
+These were not classified as new Workers/provider runtime vulnerabilities. No audit exclusions or forced downgrades were applied.
+The installed workerd/esbuild worked in local tests. No additional global installations or permission changes were made.
 
-## Better Auth固定版追加後（2026-10-11）
+## After adding the pinned Better Auth version (2026-10-11)
 
-Better Auth 1.7.7を固定して追加しました。npm auditは既知のmarkdownlint系high 5件のみです。
-Better Auth依存から新しい指摘はありません。修正除外・force downgrade・global installはしていません。
-認証のnonce/署名保証は監査結果だけに頼らず、公開APIの明示検証とmock OAuth試験で確認しました。
+Better Auth 1.7.7 was added as a pinned dependency. npm audit found only the five known high markdownlint-related findings.
+There were no new findings from Better Auth dependencies. No fix exclusions, forced downgrades, or global installs were applied.
+Authentication nonce/signature guarantees were verified through explicit public-API checks and mock OAuth tests, not audit results alone.
 
-## 公開PR前の再監査（2026-10-17）
+## Re-audit before the public PR (2026-10-17)
 
-npm ci --ignore-scriptsでlockfileを再現し、npm auditのhigh 5件が同じ開発用経路だけであることを確認しました。
-npm audit --omit=devは0件です。braces最新版は3.0.3、公式advisoryもPatched versions: Noneのままです。
-[公式advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)を再確認しました。
-CIは固定pattern・15分timeout・contents readのみで、repository Secretを使いません。
-未信頼のPRコードを実行するため、実アカウントや本番設定をCIへ渡さない前提を維持します。
+npm ci --ignore-scripts reproduced the lockfile, and npm audit confirmed that the five high findings were confined to the same development-only paths.
+npm audit --omit=dev reported zero findings. The latest braces was 3.0.3, and the official advisory still listed Patched versions: None.
+The [official advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) was checked again.
+CI used fixed patterns, a 15-minute timeout, contents read-only permission, and no repository Secrets.
+Because CI executes untrusted PR code, real accounts and production settings continued to be excluded.

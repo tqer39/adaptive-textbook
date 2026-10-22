@@ -1,16 +1,18 @@
-# 本人限定Devの公開と設定
+# Owner-only Dev publication and configuration
 
-[積み木テキストDev](https://tsumiki-text.tqer39.workers.dev)は公開済みです。
-Google認証は設定準備中のため、ログインボタンは無効です。実ログイン成功とは扱いません。
-固定CAA教材の試作で、教材生成・クラウド履歴同期・実LLM送信は未実装/無効です。
+[English](dev-publication.md) | [日本語](dev-publication.ja.md)
 
-## 設定ファイル
+[Tsumiki Text Dev](https://tsumiki-text.tqer39.workers.dev) has been published.
+Google authentication setup is pending, so the login button is disabled. This is not a successful live-login verification.
+This is a fixed CAA lesson prototype; lesson generation, cloud history sync, and live LLM requests are unimplemented/disabled.
 
-公開リポジトリはwrangler.dev.example.jsoncだけを追跡します。
-本物のaccount ID、D1 ID、許可メールはignoredのwrangler.dev.jsoncへ入力します。
-公開済み資源のIDはCloudflare Dashboardで確認してください。秘密値をchat/repo/logへ貼りません。
-ローカル設定の欠落時にexampleをそのままdeployしません。placeholderは実資源を指しません。
-rootのwrangler.jsoncはlocalhost/off用です。
+## Configuration files
+
+The public repository tracks only wrangler.dev.example.jsonc.
+Enter the real account ID, D1 ID, and allowed email in the ignored wrangler.dev.jsonc.
+Check published resource IDs in Cloudflare Dashboard. Never paste secret values into chat/repositories/logs.
+Do not deploy the example unchanged when local configuration is missing; placeholders do not identify real resources.
+The root wrangler.jsonc is for localhost/off mode.
 
 ```bash
 cp wrangler.dev.example.jsonc wrangler.dev.jsonc
@@ -20,39 +22,39 @@ npx wrangler deploy --config wrangler.dev.jsonc --dry-run
 # 資源変更/公開の承認後だけdry-runを外す
 ```
 
-PRIVATE_DEV=true、assets.run_worker_first=trueが必須です。
-本人sessionがなければrootはログイン入口だけ、教材HTML/JSは401です。
-Google未設定のauth/BYOK/session APIは503。実キー入力・実senderは常に無効です。
-認証済みassetはno-storeとCSPを付与し、logout/失効時はログイン入口へ戻します。
-GitHubのソース公開はアプリの認証解除を意味しません。履歴はブラウザ内のみです。
+PRIVATE_DEV=true and assets.run_worker_first=true are required.
+Without an owner session, the root serves only the login entry page, and lesson HTML/JS returns 401.
+Unconfigured Google auth/BYOK/session APIs return 503. Real-key entry and the live sender are always disabled.
+Authenticated assets receive no-store and CSP headers; logout/revocation returns the user to the login entry page.
+Publishing source on GitHub does not remove application authentication. History remains browser-local.
 
-## 作成済み資源と検証
+## Created resources and verification
 
-2026-10-12、公開承認と本人のWorkers Free確認後、次の対象だけを作成しました。
-既存サービス設定、有料plan、独自domain、Accessは変更していません。
+On 2026-10-12, after publication approval and the owner's confirmation of Workers Free, only the following resources were created.
+Existing service settings, paid plans, custom domains, and Access were not changed.
 
-- Worker: tsumiki-text。DO bindingはACCOUNTS / AccountVault、v1 SQLite migration。
-- D1: tsumiki-text-auth-dev。AUTH_DBへbindし、0001/0002のmigrationを適用済み。
-- 当日のD1 user/session件数は0、Worker Secret一覧も空でした。
+- Worker: tsumiki-text. DO binding: ACCOUNTS / AccountVault, with the v1 SQLite migration.
+- D1: tsumiki-text-auth-dev, bound to AUTH_DB with migrations 0001/0002 applied.
+- On that date, D1 user/session counts were zero, and the Worker Secret list was empty.
 
-公開URLでroot HTTP200、教材HTML/JS401、認証/個人設定API503を確認しました。
-320px/390px/1440pxで準備中表示、disabled login、横スクロールなし・JSエラーなしでした。
-ローカル画像はtest-results/dev-publicにあり、公開Gitには含めません。
-2026-10-17のコード監査修正はPR時点でDevへ再deployしていません。
-Freeの実CPU/共有枠/費用やbackup復旧は、この試験だけでは保証できません。
+At the public URL, the root returned HTTP200, lesson HTML/JS returned 401, and authentication/personal-settings APIs returned 503.
+At 320px/390px/1440px, the setup-pending message and disabled login were shown, without horizontal scrolling or JavaScript errors.
+Local screenshots are in test-results/dev-public and are not included in public Git.
+At PR creation, the 2026-10-17 code-audit fixes had not been redeployed to Dev.
+This test alone does not guarantee actual Free-tier CPU/shared allowances/costs or backup recovery.
 
-## 認証設定の引き継ぎ
+## Authentication setup handoff
 
-[本人限定認証の入力手順](owner-only-setup.md)を使用します。
-Google Web clientのscopeはopenid emailだけ。profile/Drive/Gmail/offline grantを要求しません。
-本人だけをtest userにし、アプリでも署名・nonce・verified emailを照合します。
+Use the [owner-only authentication input steps](owner-only-setup.md).
+The Google Web client's scopes are openid email only. No profile/Drive/Gmail/offline grant is requested.
+Only the owner is a test user; the application also checks signatures, nonce, and verified email.
 
 ```text
 https://tsumiki-text.tqer39.workers.dev/api/auth/callback/google
 ```
 
-GOOGLE_CLIENT_IDは公開変数、GOOGLE_CLIENT_SECRETは専用clientのSecretです。
-BETTER_AUTH_SECRETは認証cookie/state保護、BYOK_ENCRYPTION_KEYRINGはLLMキーのAES-GCM保存用です。
-これらは別用途で、運営共通LLMキーはありません。入力は対象WorkerのVariables and Secretsで行います。
-実secretの生成/登録、Google grant、実LLM送信は今回のPR作成に含めません。
-設定後の実ログイン、本人/他人拒否、cookie配送、中断/logoutの実環境検証が残ります。
+GOOGLE_CLIENT_ID is a public variable; GOOGLE_CLIENT_SECRET is the dedicated client's Secret.
+BETTER_AUTH_SECRET protects authentication cookies/state; BYOK_ENCRYPTION_KEYRING encrypts stored LLM keys with AES-GCM.
+These have separate purposes, and there is no shared operator-owned LLM key. Enter them in the target Worker's Variables and Secrets.
+Generating/registering real secrets, Google grants, and live LLM requests are not part of this PR creation.
+Live-environment verification remains necessary for successful owner login, owner/other-user authorization, cookie delivery, and cancellation/logout.

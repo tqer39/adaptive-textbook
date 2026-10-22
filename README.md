@@ -1,62 +1,73 @@
-# 積み木テキスト
+# TsumikiText
 
-技術的なリポジトリ名は adaptive-textbook です。
-[本人限定Dev](https://tsumiki-text.tqer39.workers.dev)を公開済みです。Google認証は設定準備中です。
-本番domainの購入・公開とLLM実送信はこの作業に含めません。
-[公開前の最小準備](docs/workers-byok.md)を参照してください。
+[English](README.md) | [日本語](README.ja.md)
 
-忙しい SRE が読む・図を操作する・予測して答える・説明練習をする教科書の試作。
-固定 CAA 教材 1 セクションのみ。v1.8.0 は短い全 13 ブロック、目安 25–35 分です（図の予想・ふりかえりは任意で追加）。
-生成機能・実Google接続・クラウド同期は未実装です。
-「自分のAPIキー設定」でOpenAI / AnthropicのBYOK管理を模擬操作できます。実キー入力は無効です。
-模擬設定はメモリ内のみ・実API未接続。[保存設計と実接続前の準備](docs/byok.md)を参照してください。
-Workers用の暗号化保存・利用者API・個人別予算・Googleログイン/session/logoutコードもローカル実装済みです。
-認証はBetter Auth 1.7.7＋専用D1へ置換済みです。[設定と検証範囲](docs/better-auth.md)。
-Google設定欄は実APIへ接続済みですが、未設定時は停止し、実キー入力・送信は引き続き無効です。
-`npm run workers:local`で通信offのWorkers配信を試せます。[詳細と未接続部分](docs/workers-byok.md)。
+The repository name is `adaptive-textbook`. The current app and sample lessons are in Japanese.
 
-## ローカル起動
+The minimal SwiftUI apps for macOS and iOS are in `apple/`; the Go development harness is in `harness/`.
+The native app supports RSS/Atom feeds, bookmarks, Apple's on-device translation, and fixed Japanese lessons with comprehension questions and answer history.
+Articles, Japanese translations, bookmarks, and answer history are stored in SQLite. LLM-powered lesson generation and cross-device sync are not connected.
+See the [native app and harness guide](docs/native-harness.md) and [tool/SaaS evaluation](docs/harness-tools.md).
+The development harness has been verified with live Codex implementation, review, and repair using the existing Pro login.
+See the [live validation results and reproduction steps](docs/codex-live-validation.md). This connection is separate from the product's lesson generation.
+The existing web prototype remains available and is described below.
 
-Node.js 22.12 以上（または 24/26 系）と npm を使用します。
-macOS / Windows / Linux で共通の手順です。
+An [owner-only development site](https://tsumiki-text.tqer39.workers.dev) has been published. Google authentication setup is pending.
+Purchasing a production domain, publishing to production, and sending live LLM requests are outside this work.
+See the [minimum setup before publication](docs/workers-byok.md).
+
+This textbook prototype lets busy SREs read, interact with diagrams, predict outcomes, answer questions, and practice explanations.
+It contains one fixed CAA lesson section. Version 1.8.0 has 13 short blocks and takes about 25–35 minutes, with optional diagram predictions and reflection.
+Lesson generation, live Google integration, and cloud sync are not implemented.
+The "Your API key settings" screen simulates OpenAI/Anthropic BYOK management. Entry of real keys is disabled.
+Simulated settings stay in memory; no live API is connected. See the [storage design and prerequisites](docs/byok.md).
+Encrypted Workers storage, user APIs, per-user budgets, and Google login/session/logout code are implemented locally.
+Authentication has been replaced with Better Auth 1.7.7 and a dedicated D1 database. See the [configuration and validation scope](docs/better-auth.md).
+The Google settings screen uses the real API routes, which stop when configuration is missing. Entry and submission of real keys remain disabled.
+Use `npm run workers:local` to try Workers hosting with provider communication disabled. See [details and remaining connections](docs/workers-byok.md).
+
+## Run locally
+
+Use Node.js 22.12 or later, or the 24/26 release lines, with npm.
+The steps are the same on macOS, Windows, and Linux.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-ブラウザで <http://127.0.0.1:5173> を開きます。
-外部 DNS、クラウド、AI API、実アカウントには接続しません。
-Nで次、Pで前のブロックへ移動できます。大文字も可。入力欄・用語dialogでは発火しません。
-「N：次へ / P：前へ」のチェックで単文字shortcutを無効化できます。設定保存失敗時は同タブのみ有効です。
-履歴はこのブラウザの localStorage に保存します。
-別ポート・別ブラウザの履歴とは共有されず、ブラウザデータを削除すると消えます。
+Open <http://127.0.0.1:5173> in a browser.
+This does not connect to external DNS, cloud services, AI APIs, or real accounts.
+Press N for the next block and P for the previous block; uppercase also works. These shortcuts are inactive in inputs and term dialogs.
+The "N: next / P: previous" checkbox disables single-character shortcuts. If saving the setting fails, it applies only to the current tab.
+History is stored in this browser's localStorage.
+It is not shared across ports or browsers and is lost when browser data is deleted.
 
-## Mac Studio で会話終了後も起動を維持
+## Keep running on Mac Studio after the chat ends
 
-リポジトリのディレクトリで、既存の tmux を使用します。
-すでに起動中の場合は同じセッションを二重に作成しません。
+Run these commands in the repository directory using the existing tmux installation.
+Do not create a duplicate session if it is already running.
 
 ```bash
 tmux new-session -d -s adaptive-textbook-caa 'npm run dev -- --strictPort'
 tmux capture-pane -p -t adaptive-textbook-caa
 ```
 
-サーバーは detached tmux 内で動き、会話用 terminal session から独立します。
-Mac の再起動・tmux 終了・サーバーの停止までは閲覧できます。
-システム自動起動は設定していません。競合時は別ポートへ移らず起動を止めます。
+The server runs in detached tmux, independently of the chat's terminal session.
+It remains available until the Mac restarts, tmux exits, or the server stops.
+Automatic startup is not configured. A port conflict stops startup rather than selecting another port.
 
-`http://127.0.0.1:5173/` はサーバーを動かしている Mac Studio でのみ開けます。
-別の Mac・iPhone の localhost はその端末自身です。
-このlocalhostサーバーは外部ネットワークへ公開しません。別途公開したDevはログイン設定準備中です。
+`http://127.0.0.1:5173/` is accessible only on the Mac Studio running the server.
+Localhost on another Mac or iPhone refers to that device itself.
+This localhost server is not exposed to external networks. Authentication setup for the separately published development site is pending.
 
-停止する場合はこのセッションだけを指定します。
+To stop it, target only this session:
 
 ```bash
 tmux kill-session -t adaptive-textbook-caa
 ```
 
-## 検証
+## Validation
 
 ```bash
 npm run lint
@@ -67,67 +78,71 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-`mise run lint` も同じ lint を実行します。
-初回の依存・Chromium ダウンロードのみネットワークが必要です。
-スクリーンショットは `test-results/` に保存します。
-Mac Studio 上の Chromium で desktop / mobile viewport を検証します。
-Windows / Linux や物理スマホでの動作はまだ検証していません。
+`mise run lint` runs the same lint checks, including documentation pairs and local Markdown links.
+Only the initial dependency and Chromium downloads require network access.
+Screenshots are saved in `test-results/`.
+Desktop and mobile viewports are tested in Chromium on Mac Studio.
+Windows, Linux, and physical smartphones have not been tested yet.
 
-## 実装の分離
+## Implementation boundaries
 
-- `src/schema.ts` / `src/book.ts`: Zod 検証済み教材と安定した block ID
-- `src/ui.ts`: 共通 UI と制限 Markdown（段落・太字・インラインコード）
-- `src/renderer.ts`: 型に応じた読書・問題レンダラー
-- `src/process-diagrams.ts`: 発行前のシーケンスとステップで追う探索フロー
-- `src/caa.ts` / `src/diagram.ts` / `src/scope-diagram.ts`: 共通の意味論と SVG 図解
-- `src/resume-review.ts`: 任意の1問復習と、想起・自己申告の分離
-- `src/improvements.ts` / `src/question-workbench.ts`: 質問・根拠・手動差分・本人反映とローカル版管理
-- `src/history.ts`: 回答履歴と再開位置を別フィールドに保存
-- `src/main.ts`: 目次・時間配分・ナビゲーション
-- `src/navigation-shortcuts.ts`: 無効化可能なN/P移動と入力・modal・IMEの除外
-- `src/terms.ts`: 文脈別の静的用語説明
-- `src/feedback.ts`: 正誤・保存成否・注意を区別する共通状態表示
-- `src/diagram-exercise.ts` / `src/diagram-learning.ts`: 図の予想・設定 snapshot・比較・ふりかえり
-- `src/question-support.ts`: 選択別の誤概念と理由確認
-- `src/reader-dialog.ts`: 読書位置を保つ説明画面・Back/Forward
-- `src/learning-plan.ts`: ブロック単位の編集上の時間目安と終点
-- `src/mobile-dns-tree.ts`: 文字を縮小しないスマホの DNS 木
+- `src/schema.ts` / `src/book.ts`: Zod-validated lessons and stable block IDs.
+- `src/ui.ts`: shared UI and restricted Markdown: paragraphs, bold, and inline code.
+- `src/renderer.ts`: reading and question renderers selected by type.
+- `src/process-diagrams.ts`: the pre-issuance sequence and a step-by-step lookup flow.
+- `src/caa.ts` / `src/diagram.ts` / `src/scope-diagram.ts`: shared semantics and SVG diagrams.
+- `src/resume-review.ts`: an optional review question, with recall separated from self-reported confidence.
+- `src/improvements.ts` / `src/question-workbench.ts`: questions, evidence, manual diffs, owner-applied edits, and local versioning.
+- `src/history.ts`: separate fields for answer history and reading position.
+- `src/main.ts`: contents, time estimates, and navigation.
+- `src/navigation-shortcuts.ts`: optional N/P navigation, excluding inputs, modals, and IME composition.
+- `src/terms.ts`: static, context-specific term explanations.
+- `src/feedback.ts`: distinct states for answer correctness, save results, and notices.
+- `src/diagram-exercise.ts` / `src/diagram-learning.ts`: predictions, configuration snapshots, comparison, and reflection.
+- `src/question-support.ts`: choice-specific misconceptions and reasoning checks.
+- `src/reader-dialog.ts`: explanation dialogs that preserve reading position, with Back/Forward navigation.
+- `src/learning-plan.ts`: editorial time estimates and stopping points for each block.
+- `src/mobile-dns-tree.ts`: a mobile DNS tree that does not shrink its text.
 
-HTML はテキストとして扱います。任意 JS、MDX、生成コードを実行しません。
-教材 ID/version とローカル匿名利用者 ID、block ID、attempt ID、時刻を記録します。
-保存失敗時はタブ内の回答を保持し、再試行を表示します。
-破損した保存データを自動で上書きしません。
+HTML is treated as text. Arbitrary JavaScript, MDX, and generated code are not executed.
+Records include the lesson ID/version, local anonymous user ID, block ID, attempt ID, and timestamp.
+If saving fails, answers remain in the tab and a retry action is shown.
+Corrupted saved data is not overwritten automatically.
 
-[設計・課題・検証記録](docs/prototype.md)を参照してください。
+See the [design, issues, and validation log](docs/prototype.md).
 
-[質問と用語から教材を成長させる設計](docs/growing-textbook.md)も記録しています。
-静的な用語説明は利用できます。将来の会話・質問からの教材生成機能は未実装です。
+The [design for growing lessons from questions and terms](docs/growing-textbook.md) is also documented.
+Static term explanations are available; generating lessons from future conversations and questions is not implemented.
 
-## インストール済み Chrome での検証
+## Test with the installed Chrome
 
 ```bash
 npx playwright test --config=playwright.chrome.config.ts
 ```
 
-通常 Chromium と Chrome は各 2 worker、独立した BrowserContext で実行します。
-画像はテスト・project・repeat/retry ごとの出力先に分離し、両 runner の出力 directory も別です。
-失敗時は trace を保存します。原因未特定の初回タイムアウトは
-[調査記録](docs/browser-timeout-investigation.md) を参照してください。
+Chromium and Chrome each use two workers with independent BrowserContexts.
+Images are separated by test, project, repeat, and retry; the two runners also have separate output directories.
+Traces are saved on failure. See the [investigation log](docs/browser-timeout-investigation.md) for the initially unexplained timeout.
 
-[生成APIの接続判断と500円上限](docs/generation-connection.md)。
-質問と手動差分の保存・反映はローカルで利用可能、AI生成は未接続です。
+See the [generation API connection decision and ¥500 limit](docs/generation-connection.md).
+Questions and manual diffs can be saved and applied locally; AI generation is not connected.
 
-## 通信offサーバー（任意）
+## Optional server with provider communication disabled
 
 ```bash
 npm run server:off
 ```
 
-127.0.0.1:5274のみで起動し、正しいHost/Origin/CSRFを持つ要求にも生成未接続を返します。
-読書UIはこのサーバーへ接続せず、providerの送信・課金・キー設定は行いません。
-`server/`に用途別model registry、薄いadapter境界、全provider共通の永続予算予約を分離しています。
-OpenAI / Anthropicの計数・生成HTTPコードは準備済みですが、ネットワークモックのみで検証し通常起動では登録しません。
-API送信・鍵設定・課金は未実施です。候補と有効化前の残りは[接続判断](docs/generation-connection.md)に記録しています。
-`.local-state/`はGit除外です。月500円の実費達成は未確認で、費用条件が未設定なら停止します。
-backendはNodeの標準moduleとZodのみ、stubはテスト内のみです。
-`npm test`は教材のVitestとbackendのNode testを実行し、HTTP試験はlocalhostの一時portを使用します。
+The server binds only to 127.0.0.1:5274. Even requests with a valid Host, Origin, and CSRF token receive a response stating that generation is not connected.
+The reading UI does not connect to this server. It does not send provider requests, incur provider charges, or configure keys.
+`server/` separates a task-specific model registry, a thin adapter boundary, and a persistent budget reservation ledger shared by all providers.
+OpenAI/Anthropic counting and generation HTTP code is prepared, but tested only with network mocks and not registered during normal startup.
+No live API submissions, key setup, or charges have been made. See the [connection decision](docs/generation-connection.md) for candidates and remaining prerequisites.
+`.local-state/` is ignored by Git. The ¥500 monthly real-cost target has not been verified; execution stops if cost conditions are missing.
+The backend uses only Node standard modules and Zod. Stubs exist only in tests.
+`npm test` runs lesson tests with Vitest and backend tests with Node's test runner; HTTP tests use temporary localhost ports.
+
+## Documentation
+
+English documentation uses `.md`; Japanese translations use `.ja.md`. Each page links to its counterpart.
+See [AGENTS.md](AGENTS.md) for contributor instructions and the [documentation rules](docs/rules/documentation.md) for scoped updates that avoid retranslating unrelated pages.

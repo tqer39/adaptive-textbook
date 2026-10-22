@@ -1,0 +1,3 @@
+interface:
+  display_name: "Apple Native Validation"
+  short_description: "Verify Tsumiki Text on macOS and iOS"

@@ -1,2 +1,21 @@
+[tools]
+go = "1.27.1"
+
 [tasks.lint]
 run = "npm run lint"
+
+[tasks."harness:check"]
+description = "Goハーネスの整形・静的検査・競合検出付きテスト"
+run = "bash scripts/check-harness.sh"
+
+[tasks."apple:test"]
+description = "Swift共通コアのローカルテスト"
+run = "swift test --package-path apple --scratch-path .local-state/swift-build --cache-path .local-state/swift-cache"
+
+[tasks."apple:build"]
+description = "macOS向けSwiftUIアプリをビルド"
+run = "swift build --package-path apple --scratch-path .local-state/swift-build --cache-path .local-state/swift-cache"
+
+[tasks."apple:benchmark"]
+description = "10万記事のDB読取が全測定で100ms未満か検証"
+run = "sh apple/scripts/benchmark-db.sh"

@@ -1,514 +1,519 @@
-# CAA 固定教材試作
+# CAA fixed-content textbook prototype
 
-## 選択と範囲
+[English](prototype.md) | [日本語](prototype.ja.md)
 
-既存 repo は README のみ。AGENTS / .agents / .agents/skills は存在しませんでした。
-独立 npm package は作らず、TypeScript + Vite の静的クライアントにしました。
-1 セクションのレンダラーに React 等のランタイムは不要と判断しました。
-Zod で教材・保存形式を検証し、本文は制限 Markdown で表示します。
-ローカル npm 依存と lockfile は全 OS 共通で、OS 専用パッケージは追加しません。
+This is a historical development log for the web prototype. Entries describe the implementation
+and verification at each stage; see the [README](../README.md) for current entry points.
 
-現在の目標は「最初の CAA RRset を採用する」ことを自分で説明できる状態です。
-固定教材の試作で、題材から教材を生成する機能は未実装です。
-5/10/15/30 分は同じ内容の区切りと練習量の候補です。
-時間と難易度を別にし、時間切替で AI は呼びません。
+## Choices and scope
 
-## 公式資料と意味論
+The existing repository contained only a README. AGENTS / .agents / .agents/skills did not exist.
+A static TypeScript + Vite client was chosen instead of a separate npm package.
+A runtime such as React was considered unnecessary for a single-section renderer.
+Zod validates the textbook and storage formats, and the text is displayed as restricted Markdown.
+Local npm dependencies and the lockfile are shared across all operating systems; no OS-specific packages are added.
 
-2026-10-10 に、実装前に以下を確認しました。
+The current goal is to be able to explain, in one's own words, why the first CAA RRset is selected.
+This is a fixed-content textbook prototype; generating material from a topic is not implemented.
+The 5/10/15/30-minute choices divide the same content into sessions and vary the amount of practice.
+Time and difficulty are separate, and changing the time does not call AI.
+
+## Official sources and semantics
+
+The following were checked before implementation on 2026-10-10:
 
 - [RFC 8659 §3](https://www.rfc-editor.org/rfc/rfc8659.html#section-3)
 - [RFC 8659 §4](https://www.rfc-editor.org/rfc/rfc8659.html#section-4)
 - [Let's Encrypt CAA](https://letsencrypt.org/docs/caa/)
 
-§3 の探索は対象名から親へ進み、最初の空でない CAA RRset で停止します。
-iodef だけの RRset は発行を制限しません。
-§4.2 の issue は CA を許可し、空の issuer は許可を与えません。
-同じ RRset 内の issue の許可は加算されます。親子 RRset は合算しません。
-§4.4 の iodef は報告先です。
+The lookup in §3 proceeds from the requested name to its parents and stops at the first nonempty CAA RRset.
+An RRset containing only iodef does not restrict issuance.
+The issue property in §4.2 authorizes a CA; an empty issuer grants no authorization.
+Permissions from issue records within the same RRset are additive. Parent and child RRsets are not combined.
+The iodef property in §4.4 specifies a reporting destination.
 
-本文、図、確認問題はこの関係を教えます。
-図と問題の採点は `evaluate` を共有し、4 パターンすべてを unit test します。
-「CAA ポリシー上の許可」は発行成功を保証しません。
-正常応答、非ワイルドカード、flags 0、issue / iodef の固定例だけが対象です。
-CNAME、未知 critical 128、issuewild、CA パラメータ、DNSSEC・障害は扱いません。
-汎用 CAA 判定器として使うことはできません。
+The text, diagrams, and comprehension checks teach these relationships.
+Diagrams and question grading share `evaluate`, and all four patterns are unit-tested.
+Authorization under CAA policy does not guarantee successful issuance.
+Only fixed examples with normal responses, non-wildcard names, flags 0, and issue / iodef are covered.
+CNAME, unknown critical 128, issuewild, CA parameters, DNSSEC, and failures are not covered.
+This cannot be used as a general-purpose CAA evaluator.
 
-## 履歴と再開
+## History and resuming
 
-`schemaVersion` は保存形式、`bookId/version` は教材の版を表します。
-匿名 `userId` はローカル ID で Google 利用者ではありません。
-回答は append し、再開位置だけを更新します。旧版の回答を置換しません。
-古い版の再開位置は、新版へ自動適用しません。
-時刻は UTC ISO 文字列で、実際の学習時間を測定した値ではありません。
-URL hash とブラウザの戻るを使えます。保存後は再開ボタンで前回位置へ移れます。
+`schemaVersion` represents the storage format; `bookId/version` represents the textbook edition.
+The anonymous `userId` is a local ID, not a Google user.
+Answers are appended, and only the resume position is updated. Answers from older editions are not replaced.
+An old edition's resume position is not automatically applied to a new edition.
+Timestamps are UTC ISO strings, not measurements of actual study time.
+URL hashes and browser Back are supported. After saving, the resume button returns to the previous position.
 
-## ローカル課題一覧
+## Local backlog
 
-- 題材指定と公式資料収集、生成・検証・教材レビューの実装
-- Google 認証とサーバー側利用者 ID、履歴同期・削除・エクスポート
-- 更新時の block ID 移行と多タブ競合の解決
-- 回答履歴を教材内で振り返る一覧と、説明課題の保存
-- 破損履歴のエクスポート・復旧 UI（現在は上書き停止）
-- 生成更新の出典・検証日・版の管理
-- 実践、記事を書く、他人に説明する到達度の評価
-- AWS / GCP / さくらの実習と費用説明、Mac / Windows / Linux 検証
-- 月 500 円（AI 込み、実習費別）を満たす構成・予算試算と実測
+- Implement topic selection, official-source collection, generation, validation, and textbook review
+- Google authentication, server-side user IDs, and history synchronization/deletion/export
+- Block-ID migration during updates and resolution of multi-tab conflicts
+- An in-textbook answer-history review list and storage of explanation exercises
+- A UI for exporting/recovering corrupted history (overwriting is currently stopped)
+- Management of sources, verification dates, and versions for generated updates
+- Evaluation of practical skills, article writing, and explaining to others
+- AWS / GCP / Sakura exercises and cost explanations; Mac / Windows / Linux verification
+- Architecture, budget estimates, and measurements to meet JPY 500 per month, including AI but excluding exercise costs
 
-今回はローカル静的教材で運用費・AI 費の発生はありません。
-月 500 円の本サービス実現を証明したものではありません。
-外部 issue 投稿、push、PR、デプロイ、OAuth 登録、ブログ公開は行いません。
+This local static textbook incurs no operating or AI costs in this work.
+It does not prove that the full service can operate for JPY 500 per month.
+No external issue, push, PR, deployment, OAuth registration, or blog publication will be performed.
 
-## 検証記録
+## Verification record
 
-macOS arm64 のローカル Chromium で以下を実行しました。
+The following were run locally in Chromium on macOS arm64:
 
-- lint（ESLint + Markdown）・typecheck・production build: 成功
-- unit: 5 件成功（探索・図と問題の整合・履歴版分離・保存障害）
-- browser: desktop 1440×1000 / mobile 390×844 の各 5 件、計 10 件成功
-- 読書、図切替、誤答→再試行→正答、連打抑止、再読み込み、途中再開、戻るを確認
-- 全時間候補、読み方切替、読了、折畳み目次、横方向のはみ出しなしを確認
-- 保存失敗→再試行、破損履歴の上書き停止、storage 無効時の読書継続を確認
-- キーボードによる図操作と reduced motion を確認
-- desktop/mobile の図・要点の PNG を取得し目視確認
-- 実行時依存の npm audit: 0 件
+- lint (ESLint + Markdown), typecheck, and production build: passed
+- Unit tests: 5 passed (lookup, diagram/question consistency, separation of history by version, storage failures)
+- Browser tests: 5 each at desktop 1440×1000 / mobile 390×844, 10 passed in total
+- Verified reading, diagram switching, incorrect answer → retry → correct answer, suppression of repeated clicks, reload, resuming partway through, and Back
+- Verified every time choice, reading-mode switching, completion, a collapsible contents list, and no horizontal overflow
+- Verified storage failure → retry, prevention of overwriting corrupted history, and continued reading when storage is disabled
+- Verified keyboard diagram interactions and reduced motion
+- Captured and visually inspected desktop/mobile PNGs of diagrams and key points
+- Runtime npm audit: 0 findings
 
-全依存 audit の追跡調査・限定修正は
-[依存監査記録](dependency-audit.md)に記録しました。
-修正後は high 5 件（根本原因は braces の 1 件）が残ります。
-production 依存は 0 件です。監査の除外はしていません。
+Follow-up investigation and limited fixes for the audit of all dependencies are recorded in the
+[dependency audit record](dependency-audit.md).
+After the fixes, 5 high-severity findings remain, with a single root cause in braces.
+Production dependencies have 0 findings. No audit exclusions were applied.
 
-物理スマホ、Safari、Firefox、Windows、Linux、スクリーンリーダーは未検証です。
-Google 認証・生成・クラウド実習・費用実測は未実装で今回の検証対象外です。
+Physical smartphones, Safari, Firefox, Windows, Linux, and screen readers have not been verified.
+Google authentication, generation, cloud exercises, and measured costs are not implemented and are outside this verification.
 
-## v1.1.0 の教材改善
+## v1.1.0 textbook improvements
 
-追加依頼を受け、2026-10-10 に公式 RFC を再確認しました。
+Following an additional request, the official RFC was rechecked on 2026-10-10.
 
-- `scope` / `boundary`: 親・子・子孫・兄弟・独自 RRset を持つ子孫の 5 名比較
-- 子の全 CA 禁止と CA 限定、比較 CA、子孫の独自 RRset を操作可能
-- 子孫・兄弟・独自 RRset・更新先 CA の予測問題を 4 問追加
-- 想定 CA の限定、検証名の禁止、CA 移行による更新失敗を運用例に追加
-- SAN の全要求名確認、既存証明書・ブラウザ接続・不正発行防止の限界を明記
+- `scope` / `boundary`: comparison of five names—a parent, child, descendant, sibling, and descendant with its own RRset
+- Controls for prohibiting all CAs or limiting CAs at the child, selecting the comparison CA, and setting the descendant's own RRset
+- Four prediction questions added for descendants, siblings, independent RRsets, and the CA used for renewal
+- Operational examples added for restricting the intended CA, prohibiting issuance for validation names, and renewal failure after CA migration
+- Explicit limitations covering every requested SAN name, existing certificates, browser connections, and prevention of unauthorized issuance
 
-`evaluateName` が最初の RRset 探索と CA 許可を共通で判断します。
-新旧図・問題・運用例の結果もこの関数で計算します。
-追加内容を無理に 10 分へ詰めず、目安を 20–30 分（説明練習は別）へ変更しました。
-短い全 13 ブロックを 5/10/15/30 分の目安に合わせて複数回へ分けます。
+`evaluateName` provides the shared decision for first-RRset lookup and CA authorization.
+New and old diagrams, questions, and operational examples all use this function to calculate results.
+Rather than squeezing the additions into 10 minutes, the estimated duration changed to 20–30 minutes, excluding explanation practice.
+The 13 short blocks are split across multiple sessions according to the 5/10/15/30-minute estimates.
 
-教材版は 1.1.0、教材 schema は旧形式を受け付ける version 2。
-旧教材のソースは `src/books/caa-v1.ts` に保持しました。
-保存 schema は 1 のまま、旧版の attempt を変更せず新版の attempt を追記します。
-旧版の再開位置を新版へ自動適用せず、更新を画面に示します。
-新版の回答を保存した後は、同じ版の位置から再開できます。
+The textbook version is 1.1.0, and the textbook schema is version 2, which accepts the old format.
+The previous textbook source is retained in `src/books/caa-v1.ts`.
+The storage schema remains 1. New-edition attempts are appended without changing old-edition attempts.
+Old resume positions are not automatically applied to the new edition, and the update is shown in the UI.
+After saving an answer in the new edition, reading can resume at a position from that same edition.
 
-[質問・会話・用語から教科書を成長させる設計](growing-textbook.md)も記録しました。
-これらの将来機能を動くように見せる UI は実装していません。
+The [design for growing a textbook through questions, conversation, and terms](growing-textbook.md) was also recorded.
+No UI was implemented that makes these future features appear operational.
 
-更新後の lint / typecheck / build、unit 9 件、desktop/mobile browser 14 件を検証。
-新しい scope と applications の PNG は `test-results/` に取得します。
-開発依存に同期由来と思われる空の重複 `@types/* 2` がありました。
-元データは `/tmp/adaptive-textbook-preserved-types-1791604961993` に移して保存しました。
-tracked の他者変更はありませんでした。
+After the update, lint / typecheck / build, 9 unit tests, and 14 desktop/mobile browser tests were verified.
+PNGs of the new scope and applications views are captured in `test-results/`.
+Empty duplicate `@types/* 2` development-dependency directories appeared to come from synchronization.
+The original data was moved to `/tmp/adaptive-textbook-preserved-types-1791604961993` and preserved.
+There were no tracked changes by others.
 
-## v1.2.0 の日本語と説明図
+## v1.2.0 Japanese wording and explanatory diagrams
 
-ユーザーの指摘「01 / 最初の RRset が決める」は、何の最初か、何を決めるかが
-見出しだけでは伝わりませんでした。
-「01 / 発行判断に使う CAA レコードはどれ？」へ変更し、
-RRset を「同じ名前・種類・クラスに属する DNS レコードの集合」と本文で定義しました。
-認証局と iodef にも短い説明を添え、iodef の通知保証を示唆しないようにしました。
+The user pointed out that “01 / 最初の RRset が決める” (“01 / The first RRset decides”) did not explain
+what “first” referred to or what it decided from the heading alone.
+It changed to “01 / 発行判断に使う CAA レコードはどれ？” (“01 / Which CAA records are used for the issuance decision?”),
+and the text defined an RRset as a set of DNS records with the same name, type, and class.
+Short explanations were also added for certificate authorities and iodef, avoiding any implication that iodef guarantees notifications.
 
-- 01 のシーケンス図: 誰が問い合わせ、誰が返し、誰が判断するかを説明
-- 04 のフロー図: 集合の有無で探索を続けるか停止するかを説明
-- 04 の探索表示: 候補→照会→集合確定→CAA 上の判定をステップで確認
-- 02 / 06 の DNS 木: 設定と名前ごとの適用範囲の比較を維持
+- Sequence diagram in 01: explains who queries, who responds, and who decides
+- Flow diagram in 04: explains whether lookup continues or stops depending on whether a set exists
+- Lookup view in 04: steps through candidate → query → selected set → decision under CAA
+- DNS trees in 02 / 06: retain the comparison of configurations and scope by name
 
-シーケンス図は上から下を時間順とし、申請者・認証局・権威 DNS の
-メッセージと認証局の内部処理を区別します。
-再帰リゾルバー・キャッシュ・親名の反復照会・障害を省略したことを明記。
-CAA 上の許可を発行完了とせず、所有確認・CA 独自の要件を別に示します。
-確認の厳密な実行順序や CP/CPS の例外を図で断定しません。
+The sequence diagram uses top-to-bottom time order and distinguishes messages between the applicant, CA, and authoritative DNS
+from the CA's internal processing.
+It explicitly omits recursive resolvers, caches, repeated queries for parent names, and failures.
+Authorization under CAA is not shown as completed issuance; domain-control validation and CA-specific requirements are separate.
+The diagram does not make definitive claims about the exact order of checks or CP/CPS exceptions.
 
-フローの探索表示は `evaluateName` の構造化された照会結果を使います。
-親へ進む場合だけ次の候補が現れ、子の iodef でもそこで停止します。
-ステップ番号は操作の現在位置であり、状態遷移図とは呼びません。
-静的 HTML/CSS と既存の決定的処理のみ。Mermaid 等の依存は追加していません。
+The flow's lookup display uses structured query results from `evaluateName`.
+A new candidate appears only when moving to a parent; a child's iodef also stops lookup at that child.
+Step numbers indicate the current interaction position and are not presented as a state-transition diagram.
+Only static HTML/CSS and the existing deterministic logic are used. No dependencies such as Mermaid were added.
 
-図の説明と本文は縮小 SVG テキストにせず、通常の HTML テキストで表示。
-mobile の分岐は縦配置。矢印・時間順・分岐・文章で関係を示します。
-keyboard で次・前・最初からを操作でき、動きの演出はありません。
-全 13 ブロックのまま、目安を 25–35 分に再評価しました。
-30 分で足りなければ最後の節を次回へ回す案を示しています。
+Diagram explanations and body text use normal HTML text instead of shrunken SVG text.
+Mobile branches are stacked vertically. Arrows, time order, branches, and prose express the relationships.
+Next, previous, and restart can be operated by keyboard, with no motion effects.
+The material still has 13 blocks, with the estimate reassessed at 25–35 minutes.
+If 30 minutes is insufficient, it suggests leaving the final section for the next session.
 
-教材版 1.2.0、教材 schema 3。旧版ソース 1.0.0 / 1.1.0 を保持。
-履歴の保存形式は 1 のままで、旧版回答を消さず、新版回答を追記します。
-用語の深掘り・会話機能は未実装のままです。
+The textbook version is 1.2.0, with textbook schema 3. Sources for old editions 1.0.0 / 1.1.0 are retained.
+The history storage format remains 1; answers from the new edition are appended without deleting older answers.
+Term exploration and conversational features remain unimplemented.
 
-lint / typecheck / build、unit 11 件、desktop/mobile browser 16 件が成功。
-mobile/desktop の sequence / flow の PNG を取得し、目視確認しました。
-RFC 8659 §1・§2.2・§3–4 は 2026-10-10 に再確認しました。
+lint / typecheck / build, 11 unit tests, and 16 desktop/mobile browser tests passed.
+Mobile/desktop sequence / flow PNGs were captured and visually inspected.
+RFC 8659 §1, §2.2, and §3–4 were rechecked on 2026-10-10.
 
-## v1.3：読み方の選択を本文へ統合
+## v1.3: integrating reading-mode choices into the text
 
-旧 UI の「基本をつかむ / 運用の視点を加える」は、01 と 05 の運用補足だけを表示・非表示にしていました。
-問題・図の判定・順序は変わらず、難易度を調整する機能ではありませんでした。
-選択を削除し、親だけの監査で見落とす理由は 04 の探索説明へ、変更レビューの注意は 05 の適用範囲説明へ統合しました。
-全員が基本説明から図・問題・運用例へ進む、共通の 1 セクションです。
+The old UI's “grasp the basics / add an operational perspective” choice only showed or hid operational notes in 01 and 05.
+It did not change questions, diagram evaluation, or order and was not a difficulty-adjustment feature.
+The choice was removed. Why a parent-only audit misses cases was integrated into the lookup explanation in 04, and change-review cautions into the scope explanation in 05.
+Everyone follows one common section, from the basic explanation through diagrams, questions, and operational examples.
 
-学習時間の 5/10/15/30 分は区切り方の目安として保持します。
-将来の概念別理解度に応じた難易度調整は別の要件で、今回の削除対象ではありません。
-旧教材 v1.2 を保存し、回答は元の version のまま保持します。
-履歴 schema 1 は旧 difficulty を任意項目として読み取り、新しい再開記録はこの表示状態を書きません。
+The 5/10/15/30-minute choices remain as guidance for splitting study sessions.
+Future difficulty adjustment based on understanding of individual concepts is a separate requirement and was not removed by this change.
+The old v1.2 textbook and its answers are retained under their original versions.
+History schema 1 reads the old difficulty as an optional field; new resume records no longer write this display state.
 
-検証：lint・typecheck・単体 11 件・ブラウザ 18 件（PC/スマホ）・build が成功しました。
-旧版回答の保持、新しい履歴に difficulty がないこと、時間切替・再読込後も運用補足が読めることを確認しました。
-Mac Chrome でも読み方の選択が消え、時間選択と本文の運用補足が残っていることを確認しました。
+Verification: lint, typecheck, 11 unit tests, 18 browser tests (desktop/mobile), and build passed.
+Verified retained old answers, the absence of difficulty in new history, and availability of operational notes after time changes and reloads.
+Mac Chrome also confirmed that the reading-mode choice was gone while time selection and the operational notes in the text remained.
 
-## v1.4：読書と操作の負担を減らす
+## v1.4: reducing the burden of reading and interaction
 
-スマホでは DNS 木を SVG の一律縮小から、HTML の縦の親子配置へ変更しました。
-名前は 16px、判定は 14px のまま折り返します。PC の SVG と CAA 意味論は保持しています。
-本文前は短い教材名・未実装表示・時間選択・今回の範囲と終点にまとめ、詳しい試作説明・保存範囲・用語は「はじめに」で開きます。
-初めて読む人にも初回説明の入口を残し、各ブロックでは同じ長い説明を繰り返しません。
-保存状態の帯は本文を覆わない通常配置へ変更しました。
+On smartphones, the DNS tree changed from a uniformly scaled SVG to a vertical HTML parent/child layout.
+Names wrap at 16px and decisions at 14px. The desktop SVG and CAA semantics are retained.
+Before the body, the UI now presents a short textbook name, notice of unimplemented features, time selection, and the current scope and endpoint; detailed prototype explanations, storage scope, and terminology open under the introduction.
+The entry point to the first-time explanation remains available, without repeating the same long explanation at each block.
+The save-status strip moved into normal layout so it does not cover the text.
 
-フロー操作は先頭の説明直後に置き、設定・操作・現在のステップを隣接させました。
-全体フローは折畳みで参照でき、残りの運用説明も削除せず後に続きます。
-IN・flags・SAN・CP/CPS に静的な説明を加えています。
+Flow controls are placed immediately after the opening explanation, keeping settings, controls, and the current step adjacent.
+The overall flow remains available in a collapsible view; the remaining operational explanation continues afterward without being removed.
+Static explanations were added for IN, flags, SAN, and CP/CPS.
 
-5/10/15/30 分は編集上のブロック別目安を合計して、開始から終点までの範囲を示します。
-先頭からなら 01–02 / 01–04 / 01–06 / 01–13 です。時間を変更すると現在のブロックが新しい開始になります。
-目次の範囲線・終点ラベル・終点の中断案内を追加しました。終点以後も制限せず、全内容を読めます。
-時間の保証や理解度による完了判定ではありません。次回の開始へ進む操作は次ブロックを保存します。
-新しい任意の planStart は履歴 schema 1 に追加し、旧履歴も読めます。旧版 v1.3 と回答を保持します。
-再開ボタンには前回のブロック名を示し、図・スクロール・回答表示は復元しないことを明記しました。
+The 5/10/15/30-minute plans sum editorial estimates for each block to show a range from the start to an endpoint.
+From the beginning, these are 01–02 / 01–04 / 01–06 / 01–13. Changing the time makes the current block the new starting point.
+Range lines in the contents, endpoint labels, and a suggestion to pause at the endpoint were added. Content after the endpoint remains freely readable.
+These are neither time guarantees nor completion judgments based on comprehension. Continuing to the next session's start saves the next block.
+The new optional planStart field was added to history schema 1, which still reads older history. The old v1.3 material and answers are retained.
+The resume button shows the previous block's name and explicitly states that diagram settings, scrolling, and displayed answers are not restored.
 
-### 同じ条件での前後測定
+### Before/after measurements under the same conditions
 
-Mac にインストール済みの Chrome 155、headless、空の保存領域で測定しました。
-通常のユーザーの Chrome タブを直接操作した検証とは区別します。
+Measurements used installed Chrome 155 on a Mac, headless, with empty storage.
+This is distinct from directly operating the user's ordinary Chrome tabs.
 
-| 指標 | v1.3 | v1.4 |
+| Metric | v1.3 | v1.4 |
 | --- | --- | --- |
-| 390px DNS 図の名前 | 約 9.4px / 8.3px | 16px / 16px |
-| 390px ブロック見出しの上端 | 約 712px | 約 323px |
-| 1440px ブロック見出しの上端 | 約 551px | 約 332px |
-| 390px フロー見出しから次ステップ操作まで | 約 1894px | 約 300px |
-| 320px の 06 横幅 | 324px（4px はみ出し） | 320px（はみ出しなし） |
+| Names in the DNS diagram at 390px | About 9.4px / 8.3px | 16px / 16px |
+| Top of the block heading at 390px | About 712px | About 323px |
+| Top of the block heading at 1440px | About 551px | About 332px |
+| Distance from the flow heading to the next-step control at 390px | About 1894px | About 300px |
+| Width of 06 at 320px | 324px (4px overflow) | 320px (no overflow) |
 
-ユーザーテストと全 WCAG 基準の検証は未実施です。寸法改善は学習効率の実証ではありません。
-今後、SRE 本人の読書・予測・翌日の説明・再開で、実時間と誤解を確認します。
+User testing and verification against every WCAG criterion have not been performed. Improved dimensions do not demonstrate more efficient learning.
+Future checks will use the SRE user's reading, predictions, next-day explanation, and resuming to assess actual time and misunderstandings.
 
-検証：lint・typecheck・単体 12 件・build が成功しました。
-PC/スマホのブラウザ 22 件と、インストール済み Mac Chrome で同じ 22 件が成功しました。
-キーボード・reduced motion・保存失敗と再試行・旧回答保持・再開・時間変更の反復を含みます。
-320px/390px の全 13 ブロックで横はみ出しなし、スマホの DNS 木の名前は 16px を確認しました。
+Verification: lint, typecheck, 12 unit tests, and build passed.
+All 22 desktop/mobile browser tests and the same 22 tests in installed Mac Chrome passed.
+Coverage includes keyboard use, reduced motion, storage failure/retry, old answers, resuming, and repeated time changes.
+All 13 blocks at 320px/390px had no horizontal overflow, and smartphone DNS-tree names were confirmed at 16px.
 
-## v1.5：その場の用語説明と選択別の補足
+## v1.5: in-place term explanations and choice-specific guidance
 
-認証局・RRset・iodef は本文中の点線下線から、短い定義・今の文脈・具体例・公式出典を開きます。
-図の近くにも HTML の用語導線を置き、SVG の文字操作に依存しません。
-term ID と教材 ID/version/block ID で説明の文脈を指定し、独自 RRset の範囲と親子の探索停止を区別します。
-静的な説明のみで、開いたことを理解済みや回答として記録しません。AI 呼び出しはありません。
+Dotted underlines in the body open short definitions, current context, concrete examples, and official sources for certificate authority, RRset, and iodef.
+HTML term links also sit near diagrams, avoiding dependence on interaction with SVG text.
+The term ID and textbook ID/version/block ID specify context, distinguishing an independent RRset's scope from parent/child lookup stopping rules.
+These are static explanations. Opening one is not recorded as understanding or as an answer. No AI call is made.
 
-既存の問題は scenario と選択肢に応じて、親子合算・兄弟への伝播・子孫の探索・別 CA への許可を区別します。
-「この選択では…を確認しましょう」と示し、誤答一つで能力や思考を断定しません。
-正答でも理由と図を確認できます。図は同じ evaluate の探索・採用集合・判定を使い、採用箇所を強調します。
-図示するのは照会した名前だけで、採用後の親や兄弟を追加探索する図ではありません。
+Existing questions distinguish combining parent/child sets, propagation to siblings, descendant lookup, and authorization for a different CA according to the scenario and chosen answer.
+Guidance asks the reader what to check for that choice; a single wrong answer is not used to characterize ability or thinking.
+Even a correct answer allows inspection of the reason and diagram. The diagram shares evaluate's lookup, selected set, and decision and highlights the selected location.
+Only queried names are shown; it does not depict further parent or sibling lookup after a set has been selected.
 
-用語・問題の図はネイティブ dialog で開き、閉じる・Escape・Back で元の位置とフォーカスへ戻ります。
-Forward で説明を再び開けます。説明の開閉では教材の URL hash と回答を変えません。
-同じタブ内の問題表示は図・前後移動・時間変更でも保持します。再試行は新しい attempt として追加します。
-再読み込みや次回再開では、回答の表示や図設定まで復元しません。保存済みの回答自体は残ります。
-旧教材 v1.4 を保存し、履歴 schema/storage key は変更せず、旧版の回答を元 version のまま保持します。
+Term explanations and question diagrams open in native dialogs; close, Escape, and Back restore the original position and focus.
+Forward can reopen an explanation. Opening and closing explanations does not change the textbook URL hash or answers.
+Within the same tab, displayed answers persist across diagrams, previous/next navigation, and time changes. Retrying appends a new attempt.
+Reloading or resuming later does not restore answer displays or diagram settings. The saved answers themselves remain.
+The old v1.4 textbook is retained. History schema/storage keys are unchanged, and older answers retain their original versions.
 
-引き続き会話 AI・自動生成・課金 API・認証・同期は未実装です。
-理解度の自動推定・長期の回答表示復元・ユーザーテストは今後の課題です。
+Conversational AI, automatic generation, billing APIs, authentication, and synchronization remain unimplemented.
+Automatic comprehension estimation, long-term restoration of displayed answers, and user testing remain future work.
 
-検証：lint・typecheck・単体 14 件・build、PC/スマホのブラウザ 28 件が成功しました。
-320px/390px/PC、用語の反復開閉・閉じる連打・Escape・focus/スクロール復帰・Back/Forwardを確認しました。
-誤答→選択別補足→図→戻る→再回答と、保存失敗でも補足を利用できることを検証しました。
-インストール済み Mac Chrome でも直列の全 28 件が成功しました。
-初回 Chrome 並列実行では画面取得と履歴再表示の 2 件がタイムアウトしました。
-該当 4 件の直列再検証と全件の直列実行は成功しましたが、並列タイムアウトの原因は未特定です。
-通常の実 Chrome タブ操作・ユーザーテスト・全 WCAG 基準の検証は未実施です。
+Verification: lint, typecheck, 14 unit tests, build, and 28 desktop/mobile browser tests passed.
+Checked 320px/390px/desktop, repeated term opening/closing, repeated close clicks, Escape, focus/scroll restoration, and Back/Forward.
+Verified incorrect answer → choice-specific guidance → diagram → return → answer again, with guidance still available after storage failure.
+All 28 tests also passed sequentially in installed Mac Chrome.
+The initial parallel Chrome run timed out in two cases: screen capture and redisplaying history.
+The four relevant cases passed sequential rechecks, and the complete sequential run passed, but the parallel timeout cause remains unidentified.
+Ordinary real-Chrome tab interaction, user testing, and verification against every WCAG criterion have not been performed.
 
-## v1.6：到達目標・4用語・状態の色
+## v1.6: learning outcomes, four terms, and status colors
 
-入口の最初のブロックだけに、目的と限界・適用範囲・採用集合と許可判断・変更時の運用注意の4目標を表示します。
-第10節の3実務例は維持し、読み進めた画面では目標を繰り返しません。
-到達目標は Zod の optional outcomes（3〜4項目）、教材 schema 4 として検証します。
-旧 v1.5 の教材は src/books/caa-v1-5.ts に保存し、回答履歴 schema は変えていません。
-実クラウド操作・証明書発行を完了したと約束しない、固定の模擬教材です。
+Only the opening block displays four goals: purpose and limitations, scope, the selected set and authorization decision, and operational cautions when making changes.
+The three practical examples in section 10 remain; the goals are not repeated later while reading.
+Learning outcomes are validated as Zod optional outcomes (3–4 items) in textbook schema 4.
+The old v1.5 material is saved in src/books/caa-v1-5.ts; the answer-history schema is unchanged.
+This is fixed simulated material and does not promise completion of real cloud operations or certificate issuance.
 
-Let’s Encrypt・DNSSEC・リゾルバー・権威 DNS を本文と関連図から開けます。
-短い定義・文脈・例・出典のあと、任意の「もう少し詳しく」を開く構成です。
-説明内に別の用語ポップアップを置かず、無限の説明連鎖を避けます。
-認証局の具体例と DNS 提供者、答えを探すリゾルバーと正式なレコードを答える権威 DNS、DNSSEC と CAA を区別します。
-DNSSEC は署名で出所・改ざんを検証する仕組みで、通信の暗号化や許可 CA の指定ではありません。
-CAA は発行成功・万能な誤発行防止・既存証明書の失効を保証しません。
+Let’s Encrypt, DNSSEC, resolver, and authoritative DNS explanations can be opened from the body and related diagrams.
+After a short definition, context, example, and source, the reader may optionally open more detail.
+Explanations do not contain further term popups, avoiding an endless chain of explanations.
+They distinguish a CA example from a DNS provider, a resolver searching for an answer from authoritative DNS returning official records, and DNSSEC from CAA.
+DNSSEC verifies origin and tampering using signatures; it does not encrypt communication or specify authorized CAs.
+CAA does not guarantee successful issuance, universal prevention of misissuance, or revocation of existing certificates.
 
-2026-10-11 に確認した一次資料：
+Primary sources checked on 2026-10-11:
 
-- [Let’s Encrypt について](https://letsencrypt.org/about/)：認証局の役割
-- [Let’s Encrypt CAA](https://letsencrypt.org/docs/caa/)：letsencrypt.org の指定
+- [About Let’s Encrypt](https://letsencrypt.org/about/): the role of a certificate authority
+- [Let’s Encrypt CAA](https://letsencrypt.org/docs/caa/): specifying letsencrypt.org
 - [RFC 9499 §6](https://www.rfc-editor.org/rfc/rfc9499.html#section-6)
-  resolver と authoritative server の定義
+  Definitions of resolver and authoritative server
 - [RFC 4033 §3–4](https://www.rfc-editor.org/rfc/rfc4033.html#section-3)
-  DNSSEC が提供する／提供しない機能
+  What DNSSEC does and does not provide
 
-状態の共通部品は src/feedback.ts、色は src/style.css の semantic tokens に集約しました。
-正解・保存成功は青、誤答・保存エラーは赤、教材更新による再開位置の注意は黄色です。
-二択問題に中間評価を追加せず、未判定・disabled は中立です。
-CAA ポリシーの許可／禁止は両方中立色とラベル・理由で表示し、意図した禁止を操作エラーにしません。
-アイコンは補助表示で、正解・不正解・保存エラー・注意などのラベルを併記します。
-既存本文は明色のまま、状態部品だけ OS の暗色設定に対応します。全面ダークテーマではありません。
+Shared status components are centralized in src/feedback.ts, and colors in semantic tokens in src/style.css.
+Correct answers and successful saves are blue; incorrect answers and save errors are red; resume-position cautions after textbook updates are yellow.
+No intermediate grade is added to binary-choice questions. Ungraded and disabled states are neutral.
+Both CAA policy authorization and prohibition use neutral colors, labels, and reasons, so an intentional prohibition is not treated as an interaction error.
+Icons are supplementary, with labels such as correct, incorrect, save error, and warning shown alongside them.
+The existing body stays light; only status components respond to the OS dark setting. This is not a full dark theme.
 
-WCAG の相対輝度式による実 CSS のコントラスト（文字／背景、枠／背景）：
+Contrast in the actual CSS, calculated with WCAG's relative-luminance formula (text/background, border/background):
 
-| 状態 | 明色 | 暗色 |
+| Status | Light | Dark |
 | --- | --- | --- |
-| 青 success | 9.59 / 4.67 | 9.87 / 6.51 |
-| 赤 error | 8.64 / 5.04 | 9.67 / 6.83 |
-| 黄 warning | 7.68 / 4.24 | 11.06 / 7.18 |
-| 中立 neutral | 8.60 / 4.07 | 10.21 / 5.67 |
+| Blue success | 9.59 / 4.67 | 9.87 / 6.51 |
+| Red error | 8.64 / 5.04 | 9.67 / 6.83 |
+| Yellow warning | 7.68 / 4.24 | 11.06 / 7.18 |
+| Neutral | 8.60 / 4.07 | 10.21 / 5.67 |
 
-文字4.5以上・枠3以上を自動検証。キーボードの青い focus ring は本文背景と6.98、3pxの太さと白の間隔を確保します。
-色覚特性に依存しないラベルを確認しましたが、全 WCAG 基準の監査や物理端末・ユーザー試験は未実施です。
+Automated checks require text contrast of at least 4.5 and borders of at least 3. The blue keyboard focus ring has 6.98 contrast against the body background, 3px thickness, and a white gap.
+Labels that do not depend on color perception were checked, but a full WCAG audit, physical-device testing, and user testing have not been performed.
 
-検証は lint・typecheck・単体16件・build、Chromium34件とインストール済み Chrome34件を対象にしています。
-320px・390px・1440px、明暗設定、4語の出典・折畳み・keyboard/Escape・Back/Forward・focus/scroll復帰を確認します。
-回答やローカル履歴を壊さないこと、正解の禁止とポリシー禁止の表示の区別、保存失敗・再試行も検証します。
-画像と色比の JSON は test-results の各テスト出力に保存します。通常の Chrome タブを操作した検証ではありません。
+Verification targets lint, typecheck, 16 unit tests, build, 34 Chromium tests, and 34 installed-Chrome tests.
+Checks cover 320px, 390px, and 1440px; light/dark settings; sources for all four terms; folding; keyboard/Escape; Back/Forward; and focus/scroll restoration.
+They also cover preservation of answers and local history, the distinction between a correct prohibition answer and a policy prohibition, save failure, and retry.
+Images and contrast-ratio JSON are saved in each test's test-results output. This is not verification through ordinary Chrome tabs.
 
-## v1.7：図を動かす前の予想とふりかえり
+## v1.7: predictions and reflections before interacting with diagrams
 
-02 の入口で「予想して図を見る」か「予想をスキップして自由探索」を選びます。
-最初から判定・探索トレースを表示しません。予想を選ぶと、設定だけを確認して回答と任意理由を保存し、
-次に結果と図を開きます。自由探索では、毎操作を強制クイズにしません。
-03 等の既存問題は理解の確認として残し、同じ問題を追加ブロックとして乱造していません。
+At the entry to 02, the reader chooses either to predict before viewing the diagram or to skip prediction and explore freely.
+The decision and lookup trace are not shown initially. Choosing prediction first shows only the configuration and saves the answer and optional reason,
+then opens the result and diagram. Free exploration does not force a quiz on every interaction.
+Existing questions such as 03 remain as comprehension checks; duplicate questions are not mass-produced as extra blocks.
 
-保存した設定（対象名・CA・親子レコード・scenario）で共通 CAA 意味論を実行します。
-比較は元の snapshot に固定し、自由探索で設定が変われば黄色の注意を表示します。
-正誤は予想にだけ適用し、CAA の禁止は中立。未回答の比較は正誤なしです。
-結果のあとに「何が違った」「理解が変わった」「助かった説明」を任意で記録できます。
-理解の自己申告は任意の別フィールドで、誤答や感想から理解度を自動推定しません。
+Shared CAA semantics run against the saved configuration: requested name, CA, parent/child records, and scenario.
+The comparison stays fixed to the original snapshot. Changing settings during free exploration displays a yellow caution.
+Correct/incorrect applies only to the prediction; a CAA prohibition stays neutral. An unanswered comparison is not graded.
+After the result, the reader can optionally record what differed, how their understanding changed, and which explanation helped.
+A comprehension self-report is a separate optional field; understanding is not automatically inferred from wrong answers or comments.
 
-履歴 schema 1 の互換追加として3配列を分離しました。
+Three arrays were separated as compatible additions to history schema 1:
 
-- diagramPredictions：教材 ID/version/block/user、attempt ID/time、設定 snapshot
-  予想または null、任意理由
-- diagramReveals：attempt ID と結果表示時刻、CAA 判定、予想の正誤または null
-- diagramReflections：attempt ID、reflection ID/time、3種の文章、任意の理解自己申告
+- diagramPredictions: textbook ID/version/block/user, attempt ID/time, configuration snapshot,
+  prediction or null, optional reason
+- diagramReveals: attempt ID and reveal timestamp, CAA decision, prediction correctness or null
+- diagramReflections: attempt ID, reflection ID/time, three kinds of text, optional comprehension self-report
 
-旧履歴の欠けた配列は空に補完し、旧回答・再開位置は維持します。
-不正な追加データは読み込みを止め、元データを上書きしません。
-保存失敗では同タブに記録を保持し、再試行で予想・結果・ふりかえりを一緒に保存します。
-保存できないままタブを閉じると失われます。入力途中の未保存文も再読み込みでは復元しません。
+Missing arrays in old history default to empty, preserving old answers and resume positions.
+Invalid added data stops loading without overwriting the original data.
+On save failure, records remain in the same tab; retry saves the prediction, reveal, and reflection together.
+Closing the tab before saving loses them. Unsaved text still being entered is not restored after reload either.
 
-予想保存と結果表示は別操作。再読み込み後は最新の同版予想と結果表示の有無を復元します。
-Back/Forward・別ブロックから戻ると同タブの段階を保持し、保存済みの文を静かに上書きしません。
-ふりかえり追加・再挑戦は新しい ID の追記です。同版の過去予想は選択して再確認できます。
-過去版の記録は保存しますが、この版の比較には混ぜません。旧教材 v1.6 はソースに保存しました。
-ブロック移動時の URL は従来どおり、予想・結果・ふりかえりの操作は #explore を変更しません。
+Saving a prediction and revealing its result are separate actions. After reload, the latest same-version prediction and whether its result was revealed are restored.
+Back/Forward and returning from another block preserve the stage within the same tab, without silently overwriting saved text.
+Adding a reflection or retrying appends a new ID. Past predictions from the same edition can be selected and reviewed.
+Records from previous editions are kept but are not mixed into comparisons in this edition. The old v1.6 textbook is retained in source.
+Block navigation keeps the existing URL behavior; prediction, reveal, and reflection actions do not change #explore.
 
-単体18件、ブラウザ40件を検証対象に拡張しました。
-全 scenario の予想を同じ CAA 判定と比較、未回答の null、legacy 履歴・壊れた追加データを検証します。
-E2E は予想→保存→再読込→結果→異なる設定→ふりかえり→Back/Forward→再読込→再挑戦を通します。
-保存失敗と再試行、320px/390px/1440px、keyboard、同 URL、元予想・記録件数・旧回答の保持も確認します。
-AI、実 DNS/クラウド、生成会話、再開時の自動復習は未実装です。
+Verification coverage expanded to 18 unit tests and 40 browser tests.
+It compares predictions in every scenario with the same CAA decisions and checks unanswered null values, legacy history, and invalid added data.
+E2E runs prediction → save → reload → reveal → different settings → reflection → Back/Forward → reload → retry.
+It also checks save failure/retry, 320px/390px/1440px, keyboard use, unchanged URLs, and retention of original predictions, record counts, and old answers.
+AI, real DNS/cloud operations, generated conversation, and automatic review when resuming are not implemented.
 
-[追加の図表現・ドリルダウン検討](visual-expression.md)は設計案です。
+The [additional diagram presentation and drill-down exploration](visual-expression.md) is a design proposal.
 
-最終結果：lint・typecheck・単体18件・build、Chromium40件・インストール済みChrome40件が成功しました。
-両ブラウザは2 workerで実行。スクリーンショットを取得し、スマホの図・赤い誤答・青い正答・暗色部品を確認しました。
-ローカル tmux adaptive-textbook-caa は生存、127.0.0.1:5173 が HTTP 200 を返すことを確認しました。
-通常Chromeのユーザータブ、物理スマホ、Windows/Linux実機、全面ダークテーマ、全WCAG監査は未検証です。
+Final results: lint, typecheck, 18 unit tests, build, 40 Chromium tests, and 40 installed-Chrome tests passed.
+Both browsers used 2 workers. Screenshots were captured, and the smartphone diagram, red incorrect answers, blue correct answers, and dark status components were checked.
+The local tmux adaptive-textbook-caa session remained alive, and 127.0.0.1:5173 was confirmed to return HTTP 200.
+Ordinary Chrome user tabs, physical smartphones, physical Windows/Linux machines, a full dark theme, and a full WCAG audit remain unverified.
 
-## v1.8：任意の再開復習と、質問からのローカル改善
+## v1.8: optional review on resuming and local improvements from questions
 
-再開位置の直接ボタンは維持し、別に「復習してから再開（任意）」を置きます。
-前回触れた節と未解決疑問を確認でき、任意の想起1問に回答するかスキップして続けられます。
-答える前には正答・採用集合・前回要点を表示せず、回答後に理由と短い要点を示します。
-正誤は recalls、理解の自己申告は recallReports の別記録です。skipは answer/correct がnull。
-初回には前回履歴を捏造しません。新版の導入確認は旧版の正誤・再開位置を流用しません。
+The direct resume-position button remains, with a separate optional review-before-resuming entry.
+The reader can review the last section visited and unresolved questions, then answer one optional recall question or skip and continue.
+Before answering, the correct answer, selected set, and previous key points are hidden; afterward, a reason and short summary are shown.
+Correctness is recorded in recalls; comprehension self-reports are separate recallReports records. For a skip, answer/correct are null.
+No previous history is fabricated for a first visit. An introduction check for a new edition does not reuse correctness or resume positions from the old edition.
 
-各節の折畳み欄と用語説明内から、節/語/教材版/時刻/文脈つきの質問をローカル保存できます。
-同一質問は重複保存を抑止します。解決/未解決の変更も追記イベントです。
-5の実生成は未接続です。質問の不足点・公式根拠・確認日を本人が記入する手動追加案を保存できます。
-通常画面にテストfixture・生成成功・自動根拠確認の表示はありません。
+Questions can be saved locally from each section's collapsible area and from term explanations, with section/term/textbook version/time/context.
+Duplicate saves of the same question are suppressed. Resolved/unresolved changes are appended as events too.
+Actual generation in step 5 is not connected. The user can save manual addition proposals describing the gap, official evidence, and verification date.
+The ordinary UI does not show test fixtures, successful generation, or automatic source verification.
 
-説明、固定の発行前図/探索図つき説明、既存CAA意味論の確認問題に限定して追加できます。
-任意JS/MDX/HTMLを実行せず、制限Markdownと許可済み部品のschemaで検証します。
-差分previewは反映前の追加先と、反映後の本文/許可図/固定scenarioを表示します。
-公式URL・確認日・根拠を併記し、本人のチェックを入れてから反映を選択します。
-確認日が未来・不正・30日超、出典URLが許可外、同じ内容・ID・見出しなら保留します。
-この鮮度は本人が記録した確認日で、自動取得の証明ではありません。内容の意味的正しさも型だけで保証しません。
+Additions are limited to explanations, explanations with fixed pre-issuance/lookup diagrams, and comprehension checks using existing CAA semantics.
+Arbitrary JS/MDX/HTML is not executed; restricted Markdown and schemas for allowed components validate the content.
+The diff preview shows the destination before applying, and the resulting text/allowed diagrams/fixed scenarios afterward.
+Official URLs, verification dates, and evidence are shown together; the user must check a confirmation before choosing to apply.
+A future, invalid, or more-than-30-day-old verification date, an unapproved source URL, or duplicate content, IDs, or headings puts the proposal on hold.
+Freshness is based on the date recorded by the user, not proof of automatic retrieval. Types alone do not guarantee semantic correctness either.
 
-反映時は Web Locks で排他し、保存済み現版と提案元版を比較します。
-保存成功した場合だけ新しい +local.UUID 版に切替えます。失敗なら元教材のままです。
-取消・反映済みの再反映、別タブの現版変更は拒否し、旧回答・質問元文脈・図snapshotを維持します。
-通常の履歴保存も同じ排他を使い、安定したレコードIDで既存履歴と統合します。
-端末/ブラウザをまたぐ同期、意味の自動検証、任意教材の差替えは対象外です。
+Applying a proposal takes a Web Locks lock and compares the saved current edition with the proposal's source edition.
+Only a successful save switches to a new +local.UUID version. Failure leaves the original material in place.
+Canceled proposals, reapplication of applied proposals, and changes to the current edition in another tab are rejected, preserving old answers, original question context, and diagram snapshots.
+Normal history saves use the same lock and merge existing history using stable record IDs.
+Cross-device/browser synchronization, automatic semantic validation, and replacement with arbitrary textbooks are out of scope.
 
-履歴schema 1に配列を互換追加：questions / proposals / proposalEvents / questionEvents /
+The following arrays were added compatibly to history schema 1: questions / proposals / proposalEvents / questionEvents /
 bookRevisions /
-recalls / recallReports。旧履歴では空に補完し、不正な保存データは上書きしません。
-入力途中の未保存質問・提案は再読み込みで戻りません。保存失敗なら同タブに記録を保持します。
-用語で保存した質問を開いている節欄へ読み直す操作は、未保存入力を破棄することを明示しています。
-元のv1.7固定教材は src/books/caa-v1-7.ts に保存しています。
+recalls / recallReports. Missing arrays in old history default to empty, and invalid stored data is not overwritten.
+Unsaved questions and proposals still being entered do not return after reload. On save failure, records remain in the same tab.
+Reloading a question saved from a term explanation into the open section form explicitly warns that unsaved input will be discarded.
+The original v1.7 fixed textbook is retained in src/books/caa-v1-7.ts.
 
-[生成接続と500円上限の判断](generation-connection.md)を記録しました。
-実API・秘密の設定・送信・支払・OAuth・deployは本人承認と予算サーバーの実装まで保留です。
-ドリルダウンは今回の実装に追加していません。
+The [generation connection and JPY 500 limit decisions](generation-connection.md) were recorded.
+Real APIs, secret configuration, transmission, payments, OAuth, and deployment remain on hold until the user's approval and implementation of a budget server.
+Drill-down was not added in this implementation.
 
-最終検証：mise run lint・typecheck・単体21件・buildが成功しました。
-Chromium58件・インストール済みChrome58件が成功。各ブラウザは2 worker、独立した出力先で実行しました。
-任意想起・skip・自己申告の分離、旧版回答保持、手動差分・新版の再読込、保存失敗と再試行を確認しました。
-二つのタブの同時反映は1版のみ。別タブで取消後の古い画面からの反映も拒否します。
-固定図・問題の追加、公式出典と鮮度の保留、320px/390px/1440px、外部送信がないことも検証しました。
-再開復習・手動差分・スマホ質問欄のスクリーンショットを取得し、表示を確認しました。
-tmux adaptive-textbook-caa と 127.0.0.1:5173 の HTTP 200 を確認しました。
-通常Chromeのユーザータブ、物理スマホ、Windows/Linux実機、全WCAG監査、実AI生成は未検証です。
+Final verification: mise run lint, typecheck, 21 unit tests, and build passed.
+58 Chromium tests and 58 installed-Chrome tests passed. Each browser used 2 workers with independent output destinations.
+Verified optional recall, separation of skip/self-report, old-edition answers, manual diffs, reloading a new edition, save failure, and retry.
+Two tabs applying concurrently produce only one edition. Applying from a stale screen after cancellation in another tab is also rejected.
+Checks also covered added fixed diagrams/questions, holds for official sources and freshness, 320px/390px/1440px, and no external transmission.
+Screenshots of resume review, manual diffs, and the smartphone question form were captured and visually checked.
+tmux adaptive-textbook-caa and HTTP 200 from 127.0.0.1:5173 were confirmed.
+Ordinary Chrome user tabs, physical smartphones, physical Windows/Linux machines, a full WCAG audit, and real AI generation remain unverified.
 
-## 通信off server・複数モデル境界とN/P移動
+## Server with communication disabled, multiple-model boundaries, and N/P navigation
 
-server/はNode標準HTTP・fs・cryptoとZodで分離しました。provider SDKや別Proxyは導入していません。
-用途別provider/model registryは能力・価格確認日・費用・データ条件・承認状態を持ち、選択は未設定です。
-共有予算台帳は原子的な予約・冪等性・同時1件・retryなし・不明結果の予約保持を実装しました。
-すべての接続先は未接続。stubはテスト内のみで、読書UIの生成未接続表示と本人の手動反映を維持します。
-費用/為替/税/固定費/API利用可否が未確認のため、月500円の実費保証とは表示していません。
-HTTPはloopback限定・Host/Origin/CSRF・JSON/schema/サイズを確認し、外部出典のfetchはありません。
-キー探索・設定・実API送信・入金・公開はありません。[詳細](generation-connection.md)に契約と残りを記録しました。
+server/ was separated using Node's standard HTTP, fs, crypto, and Zod. No provider SDK or additional proxy was introduced.
+The purpose-specific provider/model registry contains capabilities, price-check dates, costs, data conditions, and approval status; selections are unset.
+The shared budget ledger implements atomic reservation, idempotency, one concurrent request, no retry, and retention of reservations for unknown outcomes.
+Every destination remains disconnected. Stubs exist only in tests, preserving the reading UI's generation-not-connected notice and the user's manual application flow.
+Because costs, exchange rates, taxes, fixed charges, and API availability remain unverified, this is not presented as a guarantee of actual JPY 500 monthly costs.
+HTTP is loopback-only and checks Host/Origin/CSRF, JSON/schema, and size. External sources are not fetched.
+No key discovery, configuration, real API transmission, deposits, or publication occurred. The [details](generation-connection.md) record the contract and remaining work.
 
-N/nで次、P/pで前のブロックへ、既存の移動・URL・保存経路を通します。
-先頭末尾・長押しrepeat・IME・Ctrl/Meta/Alt・入力欄・editable・用語dialogでは移動しません。
-提案反映待ちと復習中もキー移動を止めます。反映中のBack/Forwardは完了後に位置を合わせます。
-画面のチェックで単文字shortcutを無効化でき、保存失敗時は設定が同タブのみであることを示します。
-見出しにフォーカスを移し、スマホの既存ボタンも利用できます。未保存入力の自動復元は追加していません。
+N/n moves to the next block and P/p to the previous block through the existing navigation, URL, and save paths.
+Navigation is suppressed at either end, on held-key repeat, during IME, with Ctrl/Meta/Alt, in inputs or editable content, and in term dialogs.
+Keyboard navigation is also stopped while a proposal awaits application or during review. Back/Forward during application is reconciled after completion.
+A checkbox disables single-character shortcuts; if saving fails, the UI shows that the setting applies only to the current tab.
+Focus moves to the heading, and existing smartphone buttons remain available. Automatic restoration of unsaved input was not added.
 
-最終検証：lint・frontend/adapter契約のtypecheck・build、教材単体21件・server13件が成功しました。
-server実装のJSはZodの実行時schemaとNode testで検証しています。
-再起動後の冪等性、価格/条件未設定、モデル切替と合計上限、fallbackなし、不明予約・月跨ぎを確認しました。
-破損台帳、残存lock、出典不一致・鮮度不足・任意コード拒否、localhostのHost/Origin/CSRFも検証しました。
-Chromium66件・インストール済みChrome66件が成功。各2 worker、独立した出力directoryです。
-N/P、Back/Forward、回答保持、保存失敗、入力/IME/modalの抑止、設定無効化、反映待ちを確認しました。
-320px/390px/1440pxのレイアウト検証を含み、N/Pヒントのスマホ画像を取得して確認しました。
-本番serverは継続起動していません。HTTP試験の一時serverは終了し、既存の読書用Viteのみ維持しています。
-物理スマホ、Windows/Linuxの永続化、電源断、全WCAG監査、実provider送信は未検証です。
+Final verification: lint, frontend/adapter contract typecheck, build, 21 textbook unit tests, and 13 server tests passed.
+The server JavaScript is checked with Zod runtime schemas and Node tests.
+Checks covered idempotency after restart, unset prices/conditions, model switching and the shared limit, no fallback, unknown reservations, and month boundaries.
+They also covered corrupted ledgers, leftover locks, source mismatch, stale evidence, arbitrary-code rejection, and localhost Host/Origin/CSRF.
+66 Chromium tests and 66 installed-Chrome tests passed. Each used 2 workers and a separate output directory.
+Verified N/P, Back/Forward, retained answers, save failures, suppression in inputs/IME/modals, disabling the setting, and pending application.
+Layout checks included 320px/390px/1440px, and smartphone screenshots of the N/P hint were captured and checked.
+The production server was not left running. Temporary HTTP test servers were stopped; only the existing reading Vite server remains.
+Physical smartphones, Windows/Linux persistence, power loss, a full WCAG audit, and real provider requests remain unverified.
 
-## OpenAI / Anthropicの通信コード準備（実通信off）
+## Preparing OpenAI / Anthropic communication code, with real communication disabled
 
-本人が最初のproviderに両社を選択したため、gpt-6-luna / claude-haiku-5-5を候補registryへ記録しました。
-2026-10-11に公式のモデル名・料金・JSON schema・計数・保管条件を確認しました。
-両社のHTTP transportは同じ最小payload・JSON schemaを使い、予約後にprompt/schema全体を計数します。
-生成は1回・retryなし・redirect拒否・固定endpointのみ。鍵は明示的に渡す引数だけで、探索・設定しません。
-通常serverはtransportを登録せず、prepared transportも拒否します。候補はdisabled、用途選択は未設定です。
-usage内の思考tokenは二重加算せず、Anthropicのcache入力を合算して保守的単価で整数精算します。
-このspentは円建て費用上界の記録で、請求書照合済み金額ではありません。
-拒否・出力切れ・不正JSON/コード/出典では案を返さず費用を記録し、不明usage・timeoutでは予約を保持します。
-計数だけでも外部送信が必要です。計数課金・推定との差の上界が未確定なので実送信は停止したままです。
-[接続判断とsetupの残り](generation-connection.md)に本文承認・保管条件・費用・鍵設定の区別を記録しました。
+Because the user chose both companies as the first providers, gpt-6-luna / claude-haiku-5-5 were recorded in the candidate registry.
+Official model names, prices, JSON schemas, counting, and retention conditions were checked on 2026-10-11.
+Both HTTP transports use the same minimal payload and JSON schema and count the full prompt/schema after reserving the budget.
+Generation runs once, without retries, with redirects rejected and only fixed endpoints allowed. Keys are explicit arguments only; they are neither discovered nor configured.
+The normal server does not register transports and also rejects prepared transports. Candidates are disabled, with purpose selections unset.
+Thinking tokens in usage are not double-counted. Anthropic cache input is included, and settlement uses integers and conservative unit prices.
+This spent value records an upper bound on cost in yen; it is not reconciled against an invoice.
+Refusals, truncated output, invalid JSON/code/sources return no proposal but record costs. Unknown usage or timeouts retain the reservation.
+Even counting requires external transmission. Real transmission remains stopped because counting charges and an upper bound on estimation error have not been established.
+The [connection decision and remaining setup](generation-connection.md) distinguish approval of transmitted text, retention conditions, costs, and key configuration.
 
-検証：lint・typecheck・build、教材単体21件・server32件（うち新規transportモック19件）が成功しました。
-新規試験は実ネットワークを使わず、両社の計数/生成body・秘密非露出・予約先行・重複抑止・使用量内訳・
-失敗/redirect/size/abort・拒否/不正出力・共通予算を確認しました。
-Chromium66件・インストール済みChrome66件が成功。320px/390px/1440pxの既存QAと画像取得も成功しました。
-実API受理・生成品質・アカウント利用可否・課金条件・物理スマホ・Windows/Linux実機は未検証です。
+Verification: lint, typecheck, build, 21 textbook unit tests, and 32 server tests, including 19 new transport-mock tests, passed.
+Without real networking, the new tests covered both providers' counting/generation bodies, non-disclosure of secrets, reservation before sending, duplicate suppression, usage breakdown,
+failures/redirects/size/abort, refusals/invalid output, and the common budget.
+66 Chromium tests and 66 installed-Chrome tests passed. Existing QA and image capture at 320px/390px/1440px also passed.
+Real API acceptance, generation quality, account availability, billing conditions, physical smartphones, and physical Windows/Linux machines remain unverified.
 
-## 利用者自身のBYOK設定画面（模擬のみ）
+## Users' own BYOK settings screen, simulation only
 
-LLMキーはサービス利用者自身が設定する仕様へ修正しました。運営共通キーは前提にしません。
-ヘッダーからOpenAI / Anthropicの登録・確認・差し替え・削除・再登録・モデル候補選択を模擬操作できます。
-この段階では実認証・暗号化保存が未実装だったため、実キー欄はdisabledで空。設定はメモリ内metadataだけです。
-模擬利用者A/Bとproviderごとに分離し、連打・中断・利用者切替・処理中削除・古い完了結果を制御します。
-失敗時は元の設定を維持し、戻る/Escape/Back/Forwardで処理を中断します。
-localStorage履歴を変更せず、再読み込みで未登録に戻ります。模擬確認を実接続成功として表示しません。
-[保存方式・暗号化用秘密・認証・削除と予算の残り](byok.md)を記録しました。
-BYOKでもAI料金は本人の月500円運用予算に含めます。
+The specification changed so that service users configure their own LLM keys; it does not assume a shared operator key.
+The header opens simulated OpenAI / Anthropic registration, checking, replacement, deletion, re-registration, and candidate-model selection.
+At this stage, real authentication and encrypted storage were not implemented, so real key fields were disabled and empty. Settings were metadata in memory only.
+State is separated by simulated user A/B and provider, controlling repeated clicks, cancellation, user changes, deletion during processing, and stale completions.
+Failures preserve the original settings. Return, Escape, Back, and Forward cancel processing.
+localStorage history is unchanged, and reload returns to an unregistered state. A simulated check is not shown as a successful real connection.
+The [remaining storage, encryption-secret, authentication, deletion, and budget work](byok.md) was recorded.
+AI charges are included in the user's JPY 500 monthly operating budget even with BYOK.
 
-検証：mise run lint・typecheck・build、教材/BYOK単体26件・server32件が成功。
-Chromium72件・インストール済みChrome72件が成功。320px/390px/1440pxの表示を含みます。
-新規BYOK UI試験は各6件で、外部送信なし・入力無効・localStorage非保存・利用者分離・削除/再登録・
-失敗/中断/連打/戻る・再読み込みを確認しました。画面を開閉してもN/P・教材回答・保存・反映が動作します。
-既存のh2全体検索は非表示dialogも拾うため、教材本文の見出しへ限定しました。
-スクリーンショットを取得しました。実キー保存/接続・本番利用者分離・実API生成は未実施です。
+Verification: mise run lint, typecheck, build, 26 textbook/BYOK unit tests, and 32 server tests passed.
+72 Chromium tests and 72 installed-Chrome tests passed, including layouts at 320px/390px/1440px.
+Each browser had 6 new BYOK UI tests covering no external transmission, disabled inputs, no localStorage persistence, user separation, deletion/re-registration,
+failures/cancellation/repeated clicks/return, and reload. N/P, textbook answers, saves, and application still work when opening/closing the screen.
+The previous query across all h2 elements also matched hidden dialogs, so it was limited to headings in the textbook body.
+Screenshots were captured. Real key storage/connection, production user separation, and real API generation were not performed.
 
-## Workersの暗号化保存・利用者別API準備
+## Preparing encrypted Workers storage and per-user APIs
 
-モックUIに加え、AES-256-GCMの保存、登録/置換/削除/モデル変更/確認APIを実装しました。
-利用者subjectから専用SQLite Durable Objectを選び、owner固定・版・CSRF・サイズ・操作数を確認します。
-暗号文のAADにowner/provider/revision/keyVersionを含め、別利用者や改ざんで復号できません。
-削除と再登録で古い要求が復活せず、途中の古い生成結果も返しません。キーや暗号文をbrowserへ返しません。
-予算は一人ごとにOpenAI/Anthropicを合算し、500円から固定費・余白を差し引く共通経路です。
-削除/再起動/月跨ぎで不明予約を解放せず、予約の永続化後にだけキーを解決します。
+In addition to the mock UI, AES-256-GCM storage and registration/replacement/deletion/model-change/check APIs were implemented.
+The user subject selects a dedicated SQLite Durable Object, with checks for a fixed owner, revision, CSRF, size, and operation count.
+Ciphertext AAD includes owner/provider/revision/keyVersion, preventing decryption for another user or after tampering.
+Deletion and re-registration do not revive old requests, and stale in-flight generation results are not returned. Neither keys nor ciphertext are returned to the browser.
+The budget follows one per-user path combining OpenAI/Anthropic, subtracting fixed costs and margin from JPY 500.
+Deletion, restart, and month boundaries do not release unknown reservations; keys are resolved only after the reservation is persisted.
 
-本番entryは認証未設定で503停止。テストprincipalは別entryだけにあり、本番設定やheaderで有効化できません。
-Google署名/issuer/audience/期限/nonceの検証部品と型付きAPI clientは準備済みですが、
-ログイン開始/callback/session発行/logoutとUI接続は残ります。Google登録だけでは実入力は有効になりません。
-画面は模擬操作のまま、実キー欄は無効です。実キー・実API・OAuth登録・秘密設定・クラウド作成は未実施です。
-[API契約と実環境への準備](workers-byok.md)に具体的な手順と未完了部分を記録しました。
+The production entry stops with 503 when authentication is not configured. Test principals exist only in a separate entry and cannot be enabled by production configuration or headers.
+Google signature/issuer/audience/expiration/nonce verification components and a typed API client are ready,
+but login start/callback/session issuance/logout and UI integration remain. Google registration alone does not enable real key entry.
+The screen remains a simulation with disabled real-key fields. Real keys, real APIs, OAuth registration, secret configuration, and cloud-resource creation were not performed.
+The [API contract and preparation for a real environment](workers-byok.md) record specific steps and unfinished work.
 
-検証：lint・typecheck・frontend/Workers build、教材/API client単体29件・server32件・Workers16件が成功。
-実Miniflare/workerdのSQLiteで再起動保持、分離、並列置換、削除、欠落暗号鍵、予算/不明予約を確認しました。
-署名検証は一時生成したテスト鍵のみ。外部fetchを禁止し、実Google/LLM通信はありません。
-Chromium72件・インストール済みChrome72件が成功。320px/390px/1440pxの既存QAを含みます。
-Workersの390px/1440px配信でも実キー無効とAPI停止を確認し、スクリーンショットを取得しました。
-一時Workers previewは検証後に停止し、既存の読書用Viteのみ維持します。
-Windows/Linux実機、電源断、backup/PITR、実認証、実課金・運用費上界は未検証です。
+Verification: lint, typecheck, frontend/Workers builds, 29 textbook/API-client unit tests, 32 server tests, and 16 Workers tests passed.
+Actual Miniflare/workerd SQLite tests covered restart retention, isolation, concurrent replacement, deletion, missing encryption keys, budgets, and unknown reservations.
+Signature checks used temporarily generated test keys only. External fetch was prohibited; no real Google/LLM communication occurred.
+72 Chromium tests and 72 installed-Chrome tests passed, including existing QA at 320px/390px/1440px.
+Workers delivery at 390px/1440px also confirmed disabled real-key entry and stopped APIs, and screenshots were captured.
+The temporary Workers preview was stopped after verification; only the existing reading Vite server remains.
+Physical Windows/Linux machines, power loss, backup/PITR, real authentication, actual billing, and an upper bound on operating costs remain unverified.
 
-## Googleログイン・session・logoutのローカル接続
+## Local integration of Google login, sessions, and logout
 
-ログイン開始、Google code交換と署名検証、callback、期限付きsession、中断、logoutをコードで接続しました。
-state/nonce/PKCE S256をブラウザ別DOの10分flowへ結び付け、callbackは送信前に一回限りでclaimします。
-opaque sessionはhashのみ保存し、cookieはSecure/HttpOnly/SameSite=Lax/__Host-です。
-同ブラウザの再ログインは旧sessionを失効し、中断/logout後の遅いcallbackはsessionを作れません。
-固定1時間の期限とalarm清掃、操作CSRF、callbackの重複/不正state拒否を含みます。
-Googleのscopeはopenidだけでoffline grantは要求せず、Google tokenを保存・画面へ返しません。
+Code connected login start, Google code exchange and signature verification, callback, expiring sessions, cancellation, and logout.
+state/nonce/PKCE S256 are bound to a browser-specific DO flow lasting 10 minutes; callbacks are atomically claimed once before transmission.
+Only hashes of opaque sessions are stored, with Secure/HttpOnly/SameSite=Lax/__Host- cookies.
+Logging in again in the same browser revokes the previous session; late callbacks after cancellation/logout cannot create sessions.
+The implementation includes a fixed one-hour expiry, alarm cleanup, operation CSRF, and rejection of duplicate callbacks or invalid state.
+Google scope is openid only, with no offline grant requested. Google tokens are neither stored nor returned to the UI.
 
-実APIの状態/開始/中断/logout/保存metadataを使うUIを、模擬利用者欄と別に追加しました。
-未設定時はAPI停止・loginボタン無効。認証済みでも実キー欄は空・無効、実senderも停止中です。
-logout/失効時はmetadataを消し、中断後の遅延redirectや古い応答を破棄します。
-ログインはlocalStorageの読書履歴をGoogle利用者へ同期しません。
-[外部設定の最小順序とURL判断点](workers-byok.md)にorigin/callback・Google client・binding・秘密を記録しました。
-この段階では公開URLは未決。OAuth登録・実grant・実秘密取得/設定・実Google/LLM通信・deployは行っていません。
+A UI using real API status/start/cancel/logout/stored metadata was added separately from the simulated-user fields.
+When unconfigured, the API stops and the login button is disabled. Even when authenticated, real-key fields remain empty/disabled and the real sender remains stopped.
+Logout/expiration clears metadata and discards delayed redirects after cancellation or old responses.
+Login does not synchronize localStorage reading history to the Google user.
+The [minimal external-configuration order and URL decisions](workers-byok.md) record origin/callback, Google client, bindings, and secrets.
+At this stage the public URL was undecided. OAuth registration, real grants, obtaining/configuring real secrets, real Google/LLM communication, and deployment were not performed.
 
-検証：lint・typecheck・frontend/Workers build、frontend単体33件・server32件・Workers23件が成功。
-テスト専用providerと一時暗号鍵を使い、実SQLiteで再起動保持、複数利用者、CSRF/state/nonce/PKCE、
-callback再送・中断・期限切れ・再ログイン・logout後の旧cookie拒否・保存ack不明を確認しました。
-Google交換コードも送信/検証関数をモックし、固定endpoint・PKCE・nonce・上限・retryなしを検証しました。
-ブラウザのfetch束縛不具合を修正後、Chromium82件・インストール済みChrome82件が成功。
-既存読書・図解・回答・再開に加え、追加UI各10件とスマホ/desktopの画像取得を含みます。
-本番のcookie配信・Google endpoint受理・session復旧・運用費は未検証です。
+Verification: lint, typecheck, frontend/Workers builds, 33 frontend unit tests, 32 server tests, and 23 Workers tests passed.
+Using test-only providers and temporary encryption keys, real SQLite tests covered restart retention, multiple users, CSRF/state/nonce/PKCE,
+callback replay, cancellation, expiration, re-login, rejection of old cookies after logout, and unknown save acknowledgments.
+Google exchange code also used mocked transmission/verification functions to check fixed endpoints, PKCE, nonce, limits, and no retry.
+After fixing a browser fetch-binding bug, 82 Chromium tests and 82 installed-Chrome tests passed.
+Coverage includes existing reading, diagrams, answers, and resuming, plus 10 additional UI tests per browser and smartphone/desktop image capture.
+Production cookie delivery, Google endpoint acceptance, session recovery, and operating costs remain unverified.
 
-## サービス名と予定URL
+## Service name and planned URL
 
-途中の名称差分は公開承認に合わせ「積み木テキスト」へ整合しました。
-リポジトリ名adaptive-textbook、既存localStorage/lockキーは互換性のため維持します。
-Dev公開先はtsumiki-text.tqer39.workers.dev（本人限定）。本番独自domainは対象外です。
-いずれも未作成・未公開で、domain購入可能保証や購入承認ではありません。
-[設定例と最小の外部準備順](workers-byok.md)を更新し、kazokubiは変更対象から除外しました。
-アクセス設定・OAuth登録・秘密設定・実API・domain購入・push/PR/deployは行っていません。
+Naming differences introduced during development were aligned to “TsumikiText (積み木テキスト)” in line with publication approval.
+The repository name adaptive-textbook and existing localStorage/lock keys are retained for compatibility.
+The Dev publication destination is tsumiki-text.tqer39.workers.dev, restricted to the owner. A production custom domain is out of scope.
+Neither has been created or published. This is neither a guarantee of domain availability nor authorization to purchase one.
+The [configuration examples and minimal external-setup order](workers-byok.md) were updated; kazokubi was excluded from the changes.
+Access configuration, OAuth registration, secret configuration, real APIs, domain purchases, push/PR/deploy were not performed.
 
-## Better Auth 1.7.7と認証専用D1
+## Better Auth 1.7.7 and authentication-only D1
 
-独自OAuth/sessionをBetter Auth 1.7.7へ置換し、認証専用D1を追加しました。
-BYOK暗号化保存・個人別予算のAccountVault DOは維持。verified user.id/session.idをprincipalへ変換します。
-Google scopeはopenid email。プロフィール取得を要求せず、保存前hookでOAuth tokenを除去します。
-公開plugin/検証APIで署名・nonce結合を補い、D1試行epochとsessionの追加項目で中断/logout後の復活を防ぎます。
-[認証DB・設定・検証範囲](better-auth.md)を参照してください。外部設定と実送信は引き続き未実施です。
+Custom OAuth/session handling was replaced with Better Auth 1.7.7, and an authentication-only D1 was added.
+The AccountVault DO for encrypted BYOK storage and per-user budgets remains. Verified user.id/session.id are converted into a principal.
+Google scopes are openid email. Profile access is not requested, and OAuth tokens are removed by a pre-save hook.
+The public plugin/verification APIs supplement signature/nonce binding, while a D1 attempt epoch and extra session fields prevent revival after cancellation/logout.
+See [authentication DB, configuration, and verification scope](better-auth.md). External configuration and real transmission remain unperformed.
 
-検証：mise run lint・typecheck・frontend/Workers build、frontend33件・server32件・Workers24件が成功。
-Chromium82件・インストール済みChrome82件も成功しました。320px/390px/1440pxの既存QAを含みます。
-一時Workers配信で390px/1440pxの実キー無効・auth/session 503を確認し、画像を取得後に停止しました。
-本番CPU・Google受理・Cookie配送・料金は未検証です。
+Verification: mise run lint, typecheck, frontend/Workers builds, 33 frontend tests, 32 server tests, and 24 Workers tests passed.
+82 Chromium tests and 82 installed-Chrome tests also passed, including existing QA at 320px/390px/1440px.
+Temporary Workers delivery verified disabled real-key entry and auth/session 503 at 390px/1440px, then stopped after screenshots were captured.
+Production CPU use, Google acceptance, cookie delivery, and prices remain unverified.
 
-## 本人限定Dev公開の準備（2026-10-12）
+## Preparing owner-only Dev publication (2026-10-12)
 
-Dev公開の承認に合わせ、表示名/タイトル/旧名称差分を積み木テキストへ整合しました。
-wrangler.dev.jsoncの対象はtsumiki-textだけで、GitHub push/PRを使わない直接uploadです。
-Google設定前は準備中のログイン入口のみ。PRIVATE_DEV=trueで全assetを先に認証し、
-匿名には教材bundleを返さず、履歴/BYOKのAPIも停止します。Google許可emailは本人の1件だけです。
-[公開準備と具体的なhandoff](dev-publication.md)に認証状態・Free確認・秘密入力の残りを記録しました。
-現時点ではFreeプラン確認待ちで未公開。実Google/secret入力とAccess設定も未実施です。
+In line with approval for Dev publication, display names, titles, and remaining old names were aligned to TsumikiText (積み木テキスト).
+wrangler.dev.jsonc targets tsumiki-text only, using direct upload without GitHub push/PR.
+Before Google configuration, only a preparation-stage login entry is shown. PRIVATE_DEV=true authenticates every asset first,
+serving no textbook bundle to anonymous visitors and stopping history/BYOK APIs. Only the owner's single email is allowlisted for Google.
+The [publication preparation and concrete handoff](dev-publication.md) record authentication state, the Free-plan check, and remaining secret input.
+At this point, publication awaits confirmation of the Free plan. Real Google/secret input and Access configuration have not been performed either.

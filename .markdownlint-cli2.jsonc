@@ -1,0 +1,6 @@
+{
+  "config": {
+    // Keep semantic line breaks and intact links/tables in both languages.
+    "MD013": false
+  }
+}

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Search Performance Validation"
+  short_description: "Measure Tsumiki Text database and search latency"

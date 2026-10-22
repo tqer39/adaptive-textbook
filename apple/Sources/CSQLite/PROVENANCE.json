@@ -1,0 +1,12 @@
+{
+  "version": "3.54.1",
+  "releaseDate": "2026-10-16",
+  "sourceURL": "https://www.sqlite.org/2026/sqlite-amalgamation-3540100.zip",
+  "releaseNotes": "https://sqlite.org/changes.html#version_3_54_1",
+  "license": "Public Domain: https://sqlite.org/copyright.html",
+  "archiveSHA3_256": "92281c86e2957f9b9305890f9ac04204caa7b677cc868dc326d942689df28e30",
+  "sqlite3cSHA3_256": "e2b869d3003b33c942b7dd7063604fbc53553e1b66609570df39b9b7b558ee81",
+  "sqlite3cSHA256": "0c657666d819f261cc4007526ad57e1669de9949df7a8ea847aa284a2bf0ee52",
+  "sqlite3hSHA256": "d6c84557261893439b341d2e6c35187ae3ea24fbfd843ad94616f72d89242b8c",
+  "purpose": "Identical fixed SQLite+FTS5 on macOS and iOS; avoids dependency on OS-specific WAL-reset fix backports."
+}
