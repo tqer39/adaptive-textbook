@@ -28,12 +28,14 @@ Use `npm run workers:local` to try Workers hosting with provider communication d
 
 ## Run locally
 
-Use Node.js 22.12 or later, or the 24/26 release lines, with npm.
+Use the patched Node.js 26.12.1 configured in `mise.toml`, with npm.
+`package.json` also declares security minimums for maintained 22/24 release lines; CI uses 26.12.1.
 The steps are the same on macOS, Windows, and Linux.
 
 ```bash
-npm ci
-npm run dev
+mise install node
+mise exec -- npm ci
+mise exec -- npm run dev
 ```
 
 Open <http://127.0.0.1:5173> in a browser.
@@ -68,6 +70,9 @@ tmux kill-session -t adaptive-textbook-caa
 ```
 
 ## Validation
+
+The [security maintenance guide](docs/security-maintenance.md) covers Renovate, full dependency audits, runtime/certificate updates, and daily checks.
+Installation scripts are disabled by the project `.npmrc`; explicitly requested npm commands still run.
 
 ```bash
 npm run lint

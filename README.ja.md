@@ -29,12 +29,14 @@ Google設定欄は実APIへ接続済みですが、未設定時は停止し、�
 
 ## ローカル起動
 
-Node.js 22.12 以上（または 24/26 系）と npm を使用します。
+`mise.toml`に設定した修正版のNode.js 26.12.1とnpmを使用します。
+`package.json`では保守中の22/24系についてもセキュリティ上の最低版を指定しています。CIは26.12.1で実行します。
 macOS / Windows / Linux で共通の手順です。
 
 ```bash
-npm ci
-npm run dev
+mise install node
+mise exec -- npm ci
+mise exec -- npm run dev
 ```
 
 ブラウザで <http://127.0.0.1:5173> を開きます。
@@ -69,6 +71,9 @@ tmux kill-session -t adaptive-textbook-caa
 ```
 
 ## 検証
+
+[継続保守の手順](docs/security-maintenance.ja.md)で、Renovate、全依存の監査、実行環境・証明書の更新、日次検査を説明しています。
+プロジェクトの`.npmrc`でインストールスクリプトを抑止します。明示したnpmコマンドは実行されます。
 
 ```bash
 npm run lint
