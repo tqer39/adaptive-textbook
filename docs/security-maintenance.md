@@ -54,3 +54,12 @@ A configuration file becomes effective only on the default branch with an instal
 Confirm a recent Dependency Dashboard or actual update PR and any configuration errors; App installation and file presence alone do not prove a successful bot run.
 After a security fix, confirm fresh main CI and Dependabot's rescan. Do not dismiss alerts simply to clear the page.
 For an emergency: read the primary advisory, update the affected runtime/package, run these checks and relevant regressions, merge the reviewed fix, then restart/redeploy affected processes and retain evidence.
+
+## Advisory coverage follow-up
+
+On 2026-10-24, Dependabot's post-merge rescan reported [GHSA-xjj6-f33q-929c](https://github.com/nodejs/undici/security/advisories/GHSA-xjj6-f33q-929c) for Miniflare's undici 7.29.1, although the full npm audit still returned zero findings.
+An exit-zero npm audit does not override a separate advisory or prove the absence of known vulnerabilities.
+The scoped `miniflare@5.20261006.1-alpha` override selects patched undici 7.30.1 without changing Miniflare or Wrangler.
+Remove the override after an upstream update supplies a patched dependency and the compatibility/regression checks pass.
+The regression uses Miniflare's actual resolved fetch implementation in an isolated child process with one loopback response; the old package crashes despite catching the rejected fetch, while the patched package rejects the response and survives.
+No external host or high-load payload is used. Keep the installed package distinct from the Node runtime's bundled fetch implementation.
