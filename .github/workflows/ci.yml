@@ -18,17 +18,19 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24
+          node-version: 26.12.1
           cache: npm
+      - run: node scripts/check-security.mjs
       - run: npm ci --ignore-scripts
+      - run: npm run security:audit
+      - run: npm audit signatures
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
       - run: npm run workers:build
       - run: npm run test:workers
-      - run: npm audit --omit=dev
-      - run: npx playwright install --with-deps chromium
+      - run: npm exec --no -- playwright install --with-deps chromium
       - run: npm run test:browser
 
   harness:
