@@ -141,27 +141,10 @@ func (e Engine) Execute(ctx context.Context, id string, reconcileLocal bool) (*R
 	}
 	ctx, cancel := context.WithTimeout(ctx, remaining)
 	defer cancel()
-	// stop only records a request; the active runner owns process termination.
-	watchDone := make(chan struct{})
-	defer close(watchDone)
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-watchDone:
-				return
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				latest, err := e.Store.Load(id)
-				if err != nil || latest.StopRequested {
-					cancel()
-					return
-				}
-			}
-		}
-	}()
+	// Stop requests cancel the active runner. Join its watcher before releasing
+	// the run/workspace locks or allowing the caller to clean up state.
+	stopWatching := watchStopRequests(ctx, cancel, func() (*Run, error) { return e.Store.Load(id) })
+	defer stopWatching()
 	if r.Pending != nil {
 		switch r.Pending.Effect {
 		case "verification":
@@ -509,4 +492,41 @@ func (e Engine) recoverModelAction(ctx context.Context, r *Run, reconcile bool) 
 	r.Phase = "checks"
 	r.CheckIndex = 0
 	return e.finish(r, "ready", "model-edit-reconciled-resume-required")
+}
+
+// watchStopRequests owns all background ledger reads for one execution.
+func watchStopRequests(ctx context.Context, cancel context.CancelFunc, load func() (*Run, error)) func() {
+	stop := make(chan struct{})
+	finished := make(chan struct{})
+	go func() {
+		defer close(finished)
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				// A ready tick must not start a new read after shutdown.
+				select {
+				case <-stop:
+					return
+				case <-ctx.Done():
+					return
+				default:
+				}
+				latest, err := load()
+				if err != nil || latest.StopRequested {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+	return func() {
+		close(stop)
+		<-finished
+	}
 }
