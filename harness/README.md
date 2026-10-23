@@ -150,7 +150,7 @@ These are recorded cumulative request counters, not a single context-window size
 Model and command inputs carry the latest checks for the current source and a compact `history` summary;
 older raw evidence remains in the ledger and logs. Previous failures and repair counts are not concealed.
 Read the full log only when needed and verify its recorded SHA-256 before reusing it.
-Representative live-model comparisons remain follow-up work. Unavailable native UI or physical devices must remain explicit external prerequisites,
+The first [fixed native evaluation](../docs/native-model-evaluation.md) records a source-review comparison and a recovery contamination limitation; representative live-model comparisons remain follow-up work. Unavailable native UI or physical devices must remain explicit external prerequisites,
 not repeated source-repair attempts.
 
 ## Maintained product tasks and prerequisites

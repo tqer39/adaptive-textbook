@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "case": "native-unsubscribe-stale-scene",
+  "baseCommit": "fe1ce0d4e1034643606eaad4b725421ee045aab4",
+  "seedPatchSHA256": "9f166456d20a5dfa1b2b014c876dc835708ac4eb5b28a2dedd16a2124a4d0e5a",
+  "seedCodeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+  "controls": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "242bda3e2564531c76034e0ccfe2dfb866656d8b07bafc947168b66224ab3cbc",
+      "mode": 420
+    },
+    {
+      "path": "apple/Package.swift",
+      "sha256": "7a650c4a3c1e7726807ac49e86d0535a68c77a6eb7f582790b43b0bf5a946262",
+      "mode": 420
+    },
+    {
+      "path": "apple/Sources/TextbookCore/FeedLibrary.swift",
+      "sha256": "0c979a0962496dd6368ec96e57ac809cba71467127c878d95140d76120df5edc",
+      "mode": 420
+    },
+    {
+      "path": "apple/Sources/TextbookCore/FeedLibraryProtocols.swift",
+      "sha256": "ddd679c73ddd11c27c58c58b00841bf6d6472e22b587f2fd2443cd2606020fb8",
+      "mode": 420
+    },
+    {
+      "path": "apple/Sources/TextbookUI/FeedReaderModel.swift",
+      "sha256": "f1eea239043b1e80e0ca8d037d47a2e0b37bb98c23355a2736e0e41242d83857",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookCoreTests/FeedLibraryQueryTests.swift",
+      "sha256": "987e74b4190b6f35eadf2851854be6f9e98de01b6d3141b922cea9b0ba08eaf0",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookCoreTests/FeedLibraryRegressionTests.swift",
+      "sha256": "aaeac22faeb6f91b836864363dd425a1ec15aa33be414d5fad6d1bfbb8e2e7dd",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookCoreTests/FeedLibrarySearchTests.swift",
+      "sha256": "f8228815c24389849fcc5e1a1392fc51d04362f02d54e547ad21136365672d3a",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookCoreTests/FeedLibraryTests.swift",
+      "sha256": "8cd256f305a2368799778d9380e1a0d36c5a34032e8849e070a9edf22d56a4dc",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookCoreTests/HistoryInitializationIndependentRegressionTests.swift",
+      "sha256": "72750497bed8091501e491d6bfcd88115577666ceb04a0c3e35ebc56670a388c",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookCoreTests/HistoryStoreTests.swift",
+      "sha256": "1fcc895b61f33a53b8763cf90aebb360a63e9009aae0dcd86ab2da88db49b84f",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookCoreTests/SearchShadowIndependentRegressionTests.swift",
+      "sha256": "11a891d44560df8e1a23b3b2aa24c4a82c49e7758fb53fac83fc0f2fc3b48215",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookUITests/FeedReaderModelTests.swift",
+      "sha256": "0f16526efa644084bcf60017e12cffde4c1de91b630376ab6cad47d051ddcffa",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookUITests/FeedReaderSearchTests.swift",
+      "sha256": "6f7a97edb0870d6baa8c710d404e7eb8b3a2fb09d4ab3437767d887e82d2f9f6",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookUITests/NativeSearchIndependentRegressionTests.swift",
+      "sha256": "bcd775c529ee2c1910cea267e4d76458a4a676d6719ca4ba9ce49a9d53a6bd93",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookUITests/ReaderModelTests.swift",
+      "sha256": "282f5974d9eb15aa325ab45a99b9a3122b2595b23b1b090fba69cbc5ea802ee4",
+      "mode": 420
+    },
+    {
+      "path": "apple/Tests/TextbookUITests/SubscriptionRemovalIndependentRegressionTests.swift",
+      "sha256": "4ac1efab1e7c5419f42b5c0be80c48939e0f6d2a2086509263737ee2b80fa730",
+      "mode": 420
+    }
+  ],
+  "preparation": "Export base files, apply seed, then create a new repository whose only commit contains the faulty candidate. Never clone history into the fixture. Prepare tasks with existing freeze-task and prepare-product commands.",
+  "measurement": "Record every attempted trial, fixed oracle outcome, elapsed time, token coverage, cumulative tokens, repeated checks and recovery. Do not rerun for a preferred result. Read-only probes are detection measurements, not product acceptance."
+}

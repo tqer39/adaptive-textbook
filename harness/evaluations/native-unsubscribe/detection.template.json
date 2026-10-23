@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "name": "eval-unsubscribe-detection",
+  "workspace": "@WORKSPACE@",
+  "goal": "Independently assess whether the current unsubscribe implementation satisfies the criteria. This is a source-only detection probe: no behavioral checks have been run for this candidate and missing execution is not by itself the finding being measured. Identify concrete source defects and do not repair them. Work only from the current source in apple/Sources/TextbookUI/FeedReaderModel.swift, relevant removeSubscription/receipt definitions in apple/Sources/TextbookCore/FeedLibrary.swift and FeedLibraryProtocols.swift, and the existing subscription-removal/search regression tests. Do not inspect Git history, other checkouts, prior solutions or parent chats. Do not delegate or run builds/tests. Host checks provide execution evidence. This is an isolated fixed evaluation, not permission to publish or merge.",
+  "acceptance": [
+    "A committed unsubscribe reconciles the local article cache, search results, bookmark states and selected article even when subsequent reloads fail.",
+    "A subscription already removed by another connection may return no newly deleted IDs; stale unretained snapshots must disappear while transaction-retained bookmarks and their saved translation remain available.",
+    "Refused removal preserves the previous UI/data and reports failure; unrelated feeds and their failures remain intact.",
+    "Only apple/Sources/TextbookUI/FeedReaderModel.swift may be edited during repair; tests, Core, metadata, task/check controls and documentation are immutable.",
+    "The fixed full Swift suite must pass before a repaired source can qualify for product acceptance. A review-only probe with no test execution is solely a detection measurement, never product acceptance."
+  ],
+  "checks": [
+    {
+      "command": [
+        "/usr/bin/git",
+        "diff",
+        "--check"
+      ],
+      "timeoutSeconds": 10
+    }
+  ],
+  "review": {
+    "kind": "codex",
+    "codex": {
+      "enabled": true,
+      "binary": "@CODEX_BINARY@",
+      "home": "@CODEX_HOME@",
+      "model": "@MODEL@"
+    },
+    "timeoutSeconds": 300
+  },
+  "maxRepairCycles": 0,
+  "timeoutSeconds": 420,
+  "logLimitBytes": 524288,
+  "maxOperations": 3
+}
