@@ -22,7 +22,7 @@ No test assertions were changed. This does not validate native UI, physical devi
 
 ## Observations on 2026-10-23
 
-All four model turns used `gpt-5.6-sol`, OpenAI, Standard (`default`), with separate executions for repair and review.
+All four model turns in the original three trials used `gpt-5.6-sol`, OpenAI, Standard (`default`), with separate executions for repair and review.
 The recorded Pro-only checks reported `prolite`, 70% shared weekly usage before the baseline/repair/review turns and 71% before the focused turn, with no additional credits.
 These shared percentages are not usage attributable to this experiment.
 The existing [allowance and stop policy](codex-live-validation.md#subscription-and-stop-conditions) remained in force.
@@ -42,7 +42,7 @@ Its recorded input was about 23% lower; output was slightly higher.
 This exploratory pair does not establish causality, general savings, a monetary bill or a model ranking.
 Both reviewers still read overlapping source ranges.
 
-Token counters cover 4/4 distinct turns. Cached input is a subset, not an additional chargeable token count to add to input.
+Token counters cover 4/4 distinct turns in those original trials. Cached input is a subset, not an additional chargeable token count to add to input.
 Repeated checks were zero under the harness definition: the same check index at the same source hash.
 The necessary checks after repair run at a different hash and are not classified as repeated checks.
 The recovery used one repair cycle, seven operations and one failed check operation.
@@ -113,5 +113,21 @@ The revised `snapshot-only-v2` preparation was tested without model calls on 202
 it reproduced the exact faulty source hash above, had one faulty commit, and could not resolve the correct base commit.
 Four preparation regressions exercise all three variants, immutable controls, existing-output preservation and seed/control tampering refusal.
 They run through the real CLI under `mise run harness:check`, locally and in the existing Linux/macOS CI jobs.
-No live model outcome under the revised protocol has been measured yet.
-Remaining work includes uncontaminated recovery evidence and additional fixed product cases before assessing representative effectiveness.
+
+### Revised-protocol recovery result
+
+Run `58d9edc365ad4292ed8ec154` subsequently tested `snapshot-only-v2` on the same date, retaining the original contaminated trial.
+The fixed full suite again failed eight assertions in the same two tests, then one repair passed all 107 tests and the bundle regression.
+A separate read-only review approved the unchanged final source hash
+`2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b`.
+The final status was `accepted`, `stale=false`, with seven operations, one repair cycle, one failed check and no same-source repeated checks.
+Elapsed time was 153.738 seconds; the two turns recorded 765,337 input, including 627,072 cached input, and 6,789 output tokens, with 2/2 coverage.
+Both turns used the same model/provider/Standard configuration and reported 73% shared weekly usage with no additional credits.
+These two turns bring coverage across all recorded trials to 6/6.
+
+Transcript audit found only current source/tests, canonical skills/contracts and supplied check logs; no correct-base object, other checkout, history or network retrieval was observed.
+The repair's `git diff` compared its changes against the faulty initial commit.
+Only the permitted model file changed; the [repair patch](../harness/evaluations/native-unsubscribe/snapshot-v2-repair.patch) and operation hashes are retained in the result record.
+This removes the observed Git-solution exposure for this run. The case is still a known historical defect with explicit criteria and existing tests, not an unseen challenge.
+Its input count is higher than the original recovery; neither duration nor token differences establish efficiency across these changed execution conditions.
+Additional fixed product cases and their missed-finding/recovery outcomes remain necessary before assessing representative effectiveness.

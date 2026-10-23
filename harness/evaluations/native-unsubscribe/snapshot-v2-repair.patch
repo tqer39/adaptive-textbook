@@ -1,0 +1,23 @@
+diff --git a/apple/Sources/TextbookUI/FeedReaderModel.swift b/apple/Sources/TextbookUI/FeedReaderModel.swift
+index 9c9f0ca..23c84be 100644
+--- a/apple/Sources/TextbookUI/FeedReaderModel.swift
++++ b/apple/Sources/TextbookUI/FeedReaderModel.swift
+@@ -153,9 +153,15 @@ final class FeedReaderModel: ObservableObject {
+             }
+             failureByFeed[subscription.id] = nil
+             // Another scene may already have removed the subscription, leaving
+-            // no newly deleted IDs. The retained IDs still describe every
+-            // target-feed snapshot that survived the transaction.
+-            var removedArticleIDs = result.deletedArticleIDs
++            // no newly deleted IDs. Treat cached target-feed snapshots as stale
++            // unless the transaction confirms that they were retained.
++            var removedArticleIDs = Set(articles.lazy.filter {
++                $0.feedID == subscription.id
++            }.map(\.id))
++            removedArticleIDs.formUnion(searchResults.lazy.compactMap {
++                $0.article.feedID == subscription.id ? $0.article.id : nil
++            })
++            removedArticleIDs.formUnion(result.deletedArticleIDs)
+             removedArticleIDs.subtract(result.retainedArticleIDs)
+             articles.removeAll {
+                 $0.feedID == subscription.id && removedArticleIDs.contains($0.id)

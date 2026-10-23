@@ -1,6 +1,5 @@
 {
   "date": "2026-10-23",
-  "protocol": "original history-bearing worktrees, before corrected snapshot-only preparation",
   "baseCommit": "fe1ce0d4e1034643606eaad4b725421ee045aab4",
   "seedPatchSHA256": "9f166456d20a5dfa1b2b014c876dc835708ac4eb5b28a2dedd16a2124a4d0e5a",
   "trials": [
@@ -97,7 +96,8 @@
           }
         }
       ],
-      "seededDefectDetected": true
+      "seededDefectDetected": true,
+      "protocol": "original"
     },
     {
       "id": "6578165dcc097a7d34ccaee8",
@@ -192,7 +192,8 @@
           }
         }
       ],
-      "seededDefectDetected": true
+      "seededDefectDetected": true,
+      "protocol": "original"
     },
     {
       "id": "1a16175b1a61f169b22a7704",
@@ -386,15 +387,230 @@
           }
         }
       ],
-      "seededDefectDetected": null
+      "seededDefectDetected": null,
+      "protocol": "original"
+    },
+    {
+      "id": "58d9edc365ad4292ed8ec154",
+      "taskHash": "f7cac345bd6f6f126a8d3e1ff6d327c1d55a3b854bcd82defe15f85c3fdf99dd",
+      "status": "accepted",
+      "reason": "",
+      "codeHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+      "elapsedMillis": 153738,
+      "name": "snapshot-only-v2-recovery",
+      "protocol": "snapshot-only-v2",
+      "snapshotStale": false,
+      "history": {
+        "preflightOperations": 1,
+        "failedPreflightOperations": 0,
+        "operations": 7,
+        "elapsedMillis": 153738,
+        "repairCycles": 1,
+        "checkOperations": 4,
+        "failedCheckOperations": 1,
+        "repeatedCheckOperations": 0,
+        "modelOperations": 2,
+        "unidentifiedModelOperations": 0,
+        "modelTurns": 2,
+        "turnsWithTokenCounters": 2,
+        "recordedTokens": {
+          "inputTokens": 765337,
+          "outputTokens": 6789,
+          "cachedInputTokens": 627072,
+          "reasoningOutputTokens": 3256,
+          "totalTokens": 772126
+        }
+      },
+      "seededDefectDetected": null,
+      "snapshotNote": "Verified at completion on 2026-10-23; retained private workspace.",
+      "operations": [
+        {
+          "preflightIndex": 0,
+          "operation": 1,
+          "phase": "preflight",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:59:34.511459Z",
+          "durationMillis": 169,
+          "logHash": "fc4c5bd86c7c8d98ef79dacc2338d57698c4eee0556d20bcb8e1348df3a90fdc",
+          "logName": "001.json"
+        },
+        {
+          "checkIndex": 0,
+          "operation": 2,
+          "phase": "checks",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:59:34.734474Z",
+          "durationMillis": 49,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "002.json"
+        },
+        {
+          "checkIndex": 1,
+          "operation": 3,
+          "phase": "checks",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 1,
+          "outcome": "command-failed",
+          "startedAt": "2026-10-23T10:59:34.832717Z",
+          "durationMillis": 14141,
+          "logHash": "c15aa4650752c6d9732b5faa13430ffb86cd14017328de932074fe6e152cdce6",
+          "logName": "003.json"
+        },
+        {
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 409621,
+              "outputTokens": 3439,
+              "cachedInputTokens": 324608,
+              "reasoningOutputTokens": 1417,
+              "totalTokens": 413060
+            },
+            "role": "repair",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a1686a-c265-7372-8b30-9269e260ff3b",
+            "turnId": "01a1686a-c532-7af2-923c-7c0ec278ed32",
+            "quota": {
+              "checkedAt": "2026-10-23T10:59:50.152582Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 73,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          },
+          "operation": 4,
+          "phase": "repair",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:59:49.043091Z",
+          "durationMillis": 67227,
+          "logHash": "b99807d671116f5a1b1329cc5015124133eaca588ef51d581cd8853799e289f2",
+          "logName": "004.json"
+        },
+        {
+          "checkIndex": 0,
+          "operation": 5,
+          "phase": "checks",
+          "codeHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "afterHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:00:56.342692Z",
+          "durationMillis": 53,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "005.json"
+        },
+        {
+          "checkIndex": 1,
+          "operation": 6,
+          "phase": "checks",
+          "codeHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "afterHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:00:56.448288Z",
+          "durationMillis": 4227,
+          "logHash": "d04fa465f419d918835787e5167839ee8666cdc6b81040766a43e3dcb1a6b423",
+          "logName": "006.json"
+        },
+        {
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 355716,
+              "outputTokens": 3350,
+              "cachedInputTokens": 302464,
+              "reasoningOutputTokens": 1839,
+              "totalTokens": 359066
+            },
+            "role": "review",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a1686b-da6f-7bf2-90dc-5b1fb4e290a3",
+            "turnId": "01a1686b-df11-7893-b70c-bbad9260715a",
+            "quota": {
+              "checkedAt": "2026-10-23T11:01:02.349407Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 73,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          },
+          "operation": 7,
+          "phase": "review",
+          "codeHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "afterHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:01:00.733422Z",
+          "durationMillis": 67872,
+          "logHash": "3f83959ecdd7ca132fba3c827fcf07fd06af7658ce927c55cc2a1af53c078a09",
+          "logName": "007.json"
+        }
+      ],
+      "transcriptAudit": "Repair and review used current source/tests, canonical skills/contracts and supplied check logs. No correct base commit, other checkouts, history or network calls were observed. Repair diff compared against the faulty initial commit.",
+      "oracle": {
+        "before": {
+          "tests": 107,
+          "failedAssertions": 8,
+          "affectedTests": 2
+        },
+        "after": {
+          "tests": 107,
+          "failedAssertions": 0,
+          "bundleRegression": "passed"
+        },
+        "fixedControlsUnchanged": true
+      },
+      "repairPatchSHA256": "c05408e3983cd9ee545436220db116a985284b7c6fcdebe0dcc4ec099b7e0a8d"
     }
   ],
   "limitations": [
     "Known historical regression with explicit acceptance criteria and existing tests; not an unseen task.",
     "One baseline and one exploratory focused trial, selected after observing baseline; no general or causal efficiency claim.",
-    "The repair role used git diff and could see the correct base implementation. Recovery proves orchestration and fixed-test restoration, not blind independent repair.",
+    "The original repair role used git diff and could see the correct base implementation. The original recovery proves orchestration and fixed-test restoration, not blind independent repair. The distinct snapshot-only-v2 trial removes that Git exposure; it remains one known historical case, not an unseen task.",
     "Original full logs/ledgers remain private; public metadata and frozen input templates do not independently authenticate those private logs.",
     "Read-only probes did not run behavioral checks; the original recovery run independently established the seeded failures with the unchanged full suite.",
     "Native GUI, physical devices and signing were not validated by these runs."
-  ]
+  ],
+  "protocols": {
+    "original": "First three trials used history-bearing worktrees; their repair exposed the solution via git diff.",
+    "snapshot-only-v2": "New single-commit repository containing only the faulty candidate; no correct base object or remote."
+  }
 }
