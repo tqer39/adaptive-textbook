@@ -4,6 +4,9 @@
 
 The repository name is `adaptive-textbook`. The current app and sample lessons are in Japanese.
 
+Product development now focuses on the browser until the owner explicitly accepts its usability.
+Native feature development is on hold; see the [development sequence and acceptance gate](docs/product-development.md).
+
 The minimal SwiftUI apps for macOS and iOS are in `apple/`; the Go development harness is in `harness/`.
 The native app supports RSS/Atom feeds, bookmarks, Apple's on-device translation, and fixed Japanese lessons with comprehension questions and answer history.
 Articles, Japanese translations, bookmarks, and answer history are stored in SQLite. LLM-powered lesson generation and cross-device sync are not connected.
@@ -70,6 +73,8 @@ tmux kill-session -t adaptive-textbook-caa
 ```
 
 ## Validation
+
+TypeScript remains the browser implementation language. An optional Rust compiler check is available with `mise run typecheck:tsrs`; see [the local trial and compatibility limits](docs/typescript-tools.md).
 
 The [security maintenance guide](docs/security-maintenance.md) covers Renovate, full dependency audits, runtime/certificate updates, and daily checks.
 Installation scripts are disabled by the project `.npmrc`; explicitly requested npm commands still run.

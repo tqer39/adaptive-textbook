@@ -4,6 +4,9 @@
 
 技術的なリポジトリ名は adaptive-textbook です。現在のアプリと教材本文は日本語です。
 
+現在はブラウザ版に集中し、ユーザーが明示的に「使いやすい」と判断するまで改善を続けます。
+ネイティブ版の機能開発は保留しています。[開発順序と受け入れ条件](docs/product-development.ja.md)を参照してください。
+
 SwiftUIのmacOS／iOS最小アプリを`apple/`、Go製の開発ハーネスを`harness/`に追加しています。
 ネイティブ版はRSS／Atomの収集・ブックマーク・Appleの端末内翻訳と、固定の日本語教材・理解問題・回答履歴を扱います。
 記事・日本語訳・ブックマーク・回答履歴をSQLiteへ保存します。実LLMによる教材生成と端末間同期は未接続です。
@@ -71,6 +74,8 @@ tmux kill-session -t adaptive-textbook-caa
 ```
 
 ## 検証
+
+ブラウザ版の実装言語は引き続きTypeScriptです。`mise run typecheck:tsrs`で任意のRust製コンパイラー検査を実行できます。[試行結果と互換性の制約](docs/typescript-tools.ja.md)を参照してください。
 
 [継続保守の手順](docs/security-maintenance.ja.md)で、Renovate、全依存の監査、実行環境・証明書の更新、日次検査を説明しています。
 プロジェクトの`.npmrc`でインストールスクリプトを抑止します。明示したnpmコマンドは実行されます。

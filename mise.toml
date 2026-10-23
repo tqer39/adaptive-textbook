@@ -9,6 +9,11 @@ activate_aggressive = true
 [tasks.lint]
 run = "npm run lint"
 
+[tasks."typecheck:tsrs"]
+description = "Experimental Rust TypeScript check; tsc remains required"
+tools = { "npm:tsrs" = "0.18.0-ts7.1.0-dev.20260929" }
+run = "tsrs --noEmit"
+
 [tasks."harness:check"]
 description = "Goハーネスの整形・静的検査・競合検出付きテスト"
 run = "bash scripts/check-harness.sh"
