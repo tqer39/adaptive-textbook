@@ -1,0 +1,616 @@
+{
+  "date": "2026-10-23",
+  "baseCommit": "fe1ce0d4e1034643606eaad4b725421ee045aab4",
+  "seedPatchSHA256": "9f166456d20a5dfa1b2b014c876dc835708ac4eb5b28a2dedd16a2124a4d0e5a",
+  "trials": [
+    {
+      "id": "99613fb92e2ed6b440d45e58",
+      "taskHash": "7458686dfa3f890f14ca5be722e3fc7db085ed543487c5ce610dbd92af489f2d",
+      "status": "blocked",
+      "reason": "repair-budget-exhausted",
+      "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+      "elapsedMillis": 62830,
+      "name": "detection",
+      "snapshotStale": false,
+      "history": {
+        "preflightOperations": 0,
+        "failedPreflightOperations": 0,
+        "operations": 2,
+        "elapsedMillis": 62830,
+        "repairCycles": 0,
+        "checkOperations": 1,
+        "failedCheckOperations": 0,
+        "repeatedCheckOperations": 0,
+        "modelOperations": 1,
+        "unidentifiedModelOperations": 0,
+        "modelTurns": 1,
+        "turnsWithTokenCounters": 1,
+        "recordedTokens": {
+          "inputTokens": 320381,
+          "outputTokens": 3509,
+          "cachedInputTokens": 265984,
+          "reasoningOutputTokens": 1998,
+          "totalTokens": 323890
+        }
+      },
+      "snapshotNote": "At completion; baseline worktree subsequently repaired, so the historical baseline is not current acceptance.",
+      "operations": [
+        {
+          "checkIndex": 0,
+          "operation": 1,
+          "phase": "checks",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:35:03.841243Z",
+          "durationMillis": 139,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "001.json"
+        },
+        {
+          "operation": 2,
+          "phase": "review",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:35:04.043471Z",
+          "durationMillis": 62691,
+          "logHash": "3f1efe426d408576aab68525ea62b7ee513028f66c16554e4929066a57b9eb2b",
+          "logName": "002.json",
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 320381,
+              "outputTokens": 3509,
+              "cachedInputTokens": 265984,
+              "reasoningOutputTokens": 1998,
+              "totalTokens": 323890
+            },
+            "role": "review",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a16854-1a2b-7371-bc75-3d4cc59789c5",
+            "turnId": "01a16854-1e37-7b60-b2ef-40bb06b275fa",
+            "quota": {
+              "checkedAt": "2026-10-23T10:35:05.645449Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 70,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          }
+        }
+      ],
+      "seededDefectDetected": true,
+      "protocol": "original"
+    },
+    {
+      "id": "6578165dcc097a7d34ccaee8",
+      "taskHash": "10f8df55af585a2f4327f0d57dd0442ca0d55df4d2edfb6a40034f6f4f150fa2",
+      "status": "blocked",
+      "reason": "repair-budget-exhausted",
+      "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+      "elapsedMillis": 57120,
+      "name": "focused",
+      "snapshotStale": false,
+      "history": {
+        "preflightOperations": 0,
+        "failedPreflightOperations": 0,
+        "operations": 2,
+        "elapsedMillis": 57120,
+        "repairCycles": 0,
+        "checkOperations": 1,
+        "failedCheckOperations": 0,
+        "repeatedCheckOperations": 0,
+        "modelOperations": 1,
+        "unidentifiedModelOperations": 0,
+        "modelTurns": 1,
+        "turnsWithTokenCounters": 1,
+        "recordedTokens": {
+          "inputTokens": 245820,
+          "outputTokens": 3564,
+          "cachedInputTokens": 200064,
+          "reasoningOutputTokens": 1886,
+          "totalTokens": 249384
+        }
+      },
+      "snapshotNote": "Verified against retained workspace on 2026-10-23.",
+      "operations": [
+        {
+          "checkIndex": 0,
+          "operation": 1,
+          "phase": "checks",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:45:18.61242Z",
+          "durationMillis": 52,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "001.json"
+        },
+        {
+          "operation": 2,
+          "phase": "review",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:45:18.71853Z",
+          "durationMillis": 57068,
+          "logHash": "c953f9c6305e0cc9d5b83a8ce3888e11e60c605023c426190bd336af599fd37f",
+          "logName": "002.json",
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 245820,
+              "outputTokens": 3564,
+              "cachedInputTokens": 200064,
+              "reasoningOutputTokens": 1886,
+              "totalTokens": 249384
+            },
+            "role": "review",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a1685d-7b0b-7f52-bfe8-1b9cf6214638",
+            "turnId": "01a1685d-7f66-7b70-8759-3ded366b3679",
+            "quota": {
+              "checkedAt": "2026-10-23T10:45:20.344503Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 71,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          }
+        }
+      ],
+      "seededDefectDetected": true,
+      "protocol": "original"
+    },
+    {
+      "id": "1a16175b1a61f169b22a7704",
+      "taskHash": "18ed7b97100d9ce1e2141366b944196464e9f9245da2cfaca0d1e6e2cbc75510",
+      "status": "accepted",
+      "reason": "",
+      "codeHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+      "elapsedMillis": 166759,
+      "name": "recovery",
+      "snapshotStale": false,
+      "history": {
+        "preflightOperations": 1,
+        "failedPreflightOperations": 0,
+        "operations": 7,
+        "elapsedMillis": 166759,
+        "repairCycles": 1,
+        "checkOperations": 4,
+        "failedCheckOperations": 1,
+        "repeatedCheckOperations": 0,
+        "modelOperations": 2,
+        "unidentifiedModelOperations": 0,
+        "modelTurns": 2,
+        "turnsWithTokenCounters": 2,
+        "recordedTokens": {
+          "inputTokens": 621629,
+          "outputTokens": 7338,
+          "cachedInputTokens": 522624,
+          "reasoningOutputTokens": 3700,
+          "totalTokens": 628967
+        }
+      },
+      "snapshotNote": "Verified against retained workspace on 2026-10-23.",
+      "operations": [
+        {
+          "preflightIndex": 0,
+          "operation": 1,
+          "phase": "preflight",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:36:39.537969Z",
+          "durationMillis": 134,
+          "logHash": "fc4c5bd86c7c8d98ef79dacc2338d57698c4eee0556d20bcb8e1348df3a90fdc",
+          "logName": "001.json"
+        },
+        {
+          "checkIndex": 0,
+          "operation": 2,
+          "phase": "checks",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:36:39.724321Z",
+          "durationMillis": 69,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "002.json"
+        },
+        {
+          "checkIndex": 1,
+          "operation": 3,
+          "phase": "checks",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 1,
+          "outcome": "command-failed",
+          "startedAt": "2026-10-23T10:36:39.843968Z",
+          "durationMillis": 14368,
+          "logHash": "001b44fc7c745a0d3d603e667b8b2290e0a0c3d97f413fefb3174dc3978516b2",
+          "logName": "003.json"
+        },
+        {
+          "operation": 4,
+          "phase": "repair",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:36:54.287078Z",
+          "durationMillis": 55497,
+          "logHash": "719453d92cd8c38684bf626b2c2d6bbb86541e78a7bba911703aa8d1325d8f94",
+          "logName": "004.json",
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 272910,
+              "outputTokens": 2509,
+              "cachedInputTokens": 227328,
+              "reasoningOutputTokens": 1149,
+              "totalTokens": 275419
+            },
+            "role": "repair",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a16855-c805-78c1-848f-3d141bab6685",
+            "turnId": "01a16855-ccf9-72f3-81f4-44159a1f2709",
+            "quota": {
+              "checkedAt": "2026-10-23T10:36:55.892388Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 70,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          }
+        },
+        {
+          "checkIndex": 0,
+          "operation": 5,
+          "phase": "checks",
+          "codeHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "afterHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:37:49.848672Z",
+          "durationMillis": 53,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "005.json"
+        },
+        {
+          "checkIndex": 1,
+          "operation": 6,
+          "phase": "checks",
+          "codeHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "afterHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:37:49.955414Z",
+          "durationMillis": 3994,
+          "logHash": "3ba0cd5efcbeafaaf362cf27c4db839cb8f1155fc818459f77646a5b3cd4b49b",
+          "logName": "006.json"
+        },
+        {
+          "operation": 7,
+          "phase": "review",
+          "codeHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "afterHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:37:54.012883Z",
+          "durationMillis": 92644,
+          "logHash": "47622527a957ecb7946f44374d27cc756c6bf696f8d9532e2fdc4a15eb71833f",
+          "logName": "007.json",
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 348719,
+              "outputTokens": 4829,
+              "cachedInputTokens": 295296,
+              "reasoningOutputTokens": 2551,
+              "totalTokens": 353548
+            },
+            "role": "review",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a16856-b168-7e60-8ead-d1d1bce21c51",
+            "turnId": "01a16856-b440-7231-ae60-513d919c9f9f",
+            "quota": {
+              "checkedAt": "2026-10-23T10:37:55.130978Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 70,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          }
+        }
+      ],
+      "seededDefectDetected": null,
+      "protocol": "original"
+    },
+    {
+      "id": "58d9edc365ad4292ed8ec154",
+      "taskHash": "f7cac345bd6f6f126a8d3e1ff6d327c1d55a3b854bcd82defe15f85c3fdf99dd",
+      "status": "accepted",
+      "reason": "",
+      "codeHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+      "elapsedMillis": 153738,
+      "name": "snapshot-only-v2-recovery",
+      "protocol": "snapshot-only-v2",
+      "snapshotStale": false,
+      "history": {
+        "preflightOperations": 1,
+        "failedPreflightOperations": 0,
+        "operations": 7,
+        "elapsedMillis": 153738,
+        "repairCycles": 1,
+        "checkOperations": 4,
+        "failedCheckOperations": 1,
+        "repeatedCheckOperations": 0,
+        "modelOperations": 2,
+        "unidentifiedModelOperations": 0,
+        "modelTurns": 2,
+        "turnsWithTokenCounters": 2,
+        "recordedTokens": {
+          "inputTokens": 765337,
+          "outputTokens": 6789,
+          "cachedInputTokens": 627072,
+          "reasoningOutputTokens": 3256,
+          "totalTokens": 772126
+        }
+      },
+      "seededDefectDetected": null,
+      "snapshotNote": "Verified at completion on 2026-10-23; retained private workspace.",
+      "operations": [
+        {
+          "preflightIndex": 0,
+          "operation": 1,
+          "phase": "preflight",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:59:34.511459Z",
+          "durationMillis": 169,
+          "logHash": "fc4c5bd86c7c8d98ef79dacc2338d57698c4eee0556d20bcb8e1348df3a90fdc",
+          "logName": "001.json"
+        },
+        {
+          "checkIndex": 0,
+          "operation": 2,
+          "phase": "checks",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:59:34.734474Z",
+          "durationMillis": 49,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "002.json"
+        },
+        {
+          "checkIndex": 1,
+          "operation": 3,
+          "phase": "checks",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "exitCode": 1,
+          "outcome": "command-failed",
+          "startedAt": "2026-10-23T10:59:34.832717Z",
+          "durationMillis": 14141,
+          "logHash": "c15aa4650752c6d9732b5faa13430ffb86cd14017328de932074fe6e152cdce6",
+          "logName": "003.json"
+        },
+        {
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 409621,
+              "outputTokens": 3439,
+              "cachedInputTokens": 324608,
+              "reasoningOutputTokens": 1417,
+              "totalTokens": 413060
+            },
+            "role": "repair",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a1686a-c265-7372-8b30-9269e260ff3b",
+            "turnId": "01a1686a-c532-7af2-923c-7c0ec278ed32",
+            "quota": {
+              "checkedAt": "2026-10-23T10:59:50.152582Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 73,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          },
+          "operation": 4,
+          "phase": "repair",
+          "codeHash": "0f704e6940693dd2045d2ab28eb810f7fb7070085a381e25a0ea8cc0b973be74",
+          "afterHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T10:59:49.043091Z",
+          "durationMillis": 67227,
+          "logHash": "b99807d671116f5a1b1329cc5015124133eaca588ef51d581cd8853799e289f2",
+          "logName": "004.json"
+        },
+        {
+          "checkIndex": 0,
+          "operation": 5,
+          "phase": "checks",
+          "codeHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "afterHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:00:56.342692Z",
+          "durationMillis": 53,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "005.json"
+        },
+        {
+          "checkIndex": 1,
+          "operation": 6,
+          "phase": "checks",
+          "codeHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "afterHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:00:56.448288Z",
+          "durationMillis": 4227,
+          "logHash": "d04fa465f419d918835787e5167839ee8666cdc6b81040766a43e3dcb1a6b423",
+          "logName": "006.json"
+        },
+        {
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 355716,
+              "outputTokens": 3350,
+              "cachedInputTokens": 302464,
+              "reasoningOutputTokens": 1839,
+              "totalTokens": 359066
+            },
+            "role": "review",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a1686b-da6f-7bf2-90dc-5b1fb4e290a3",
+            "turnId": "01a1686b-df11-7893-b70c-bbad9260715a",
+            "quota": {
+              "checkedAt": "2026-10-23T11:01:02.349407Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 73,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          },
+          "operation": 7,
+          "phase": "review",
+          "codeHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "afterHash": "2c31b42dfe253450089cbded98f04596dab9296138c9a3783fb66e169d572e9b",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:01:00.733422Z",
+          "durationMillis": 67872,
+          "logHash": "3f83959ecdd7ca132fba3c827fcf07fd06af7658ce927c55cc2a1af53c078a09",
+          "logName": "007.json"
+        }
+      ],
+      "transcriptAudit": "Repair and review used current source/tests, canonical skills/contracts and supplied check logs. No correct base commit, other checkouts, history or network calls were observed. Repair diff compared against the faulty initial commit.",
+      "oracle": {
+        "before": {
+          "tests": 107,
+          "failedAssertions": 8,
+          "affectedTests": 2
+        },
+        "after": {
+          "tests": 107,
+          "failedAssertions": 0,
+          "bundleRegression": "passed"
+        },
+        "fixedControlsUnchanged": true
+      },
+      "repairPatchSHA256": "c05408e3983cd9ee545436220db116a985284b7c6fcdebe0dcc4ec099b7e0a8d"
+    }
+  ],
+  "limitations": [
+    "Known historical regression with explicit acceptance criteria and existing tests; not an unseen task.",
+    "One baseline and one exploratory focused trial, selected after observing baseline; no general or causal efficiency claim.",
+    "The original repair role used git diff and could see the correct base implementation. The original recovery proves orchestration and fixed-test restoration, not blind independent repair. The distinct snapshot-only-v2 trial removes that Git exposure; it remains one known historical case, not an unseen task.",
+    "Original full logs/ledgers remain private; public metadata and frozen input templates do not independently authenticate those private logs.",
+    "Read-only probes did not run behavioral checks; the original recovery run independently established the seeded failures with the unchanged full suite.",
+    "Native GUI, physical devices and signing were not validated by these runs."
+  ],
+  "protocols": {
+    "original": "First three trials used history-bearing worktrees; their repair exposed the solution via git diff.",
+    "snapshot-only-v2": "New single-commit repository containing only the faulty candidate; no correct base object or remote."
+  }
+}

@@ -1,0 +1,13 @@
+--- a/apple/Sources/TextbookCore/HistoryStore.swift
++++ b/apple/Sources/TextbookCore/HistoryStore.swift
+@@ -65,9 +65,7 @@
+         if version == 0 {
+             try Self.execute(opened, "BEGIN IMMEDIATE")
+             do {
+-                guard let lockedVersion = Int(try Self.scalarText(opened, "PRAGMA user_version")) else {
+-                    throw HistoryError.corrupted
+-                }
++                let lockedVersion = version
+                 if lockedVersion == 0 {
+                     // Do not adopt an unknown existing database as an empty textbook store.
+                     guard try Self.scalarText(opened, "SELECT count(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'") == "0" else {

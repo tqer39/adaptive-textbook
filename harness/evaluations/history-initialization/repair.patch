@@ -1,0 +1,15 @@
+diff --git a/apple/Sources/TextbookCore/HistoryStore.swift b/apple/Sources/TextbookCore/HistoryStore.swift
+index 46b93af..d3a1298 100644
+--- a/apple/Sources/TextbookCore/HistoryStore.swift
++++ b/apple/Sources/TextbookCore/HistoryStore.swift
+@@ -65,7 +65,9 @@ public actor HistoryStore: AnswerHistoryStoring {
+         if version == 0 {
+             try Self.execute(opened, "BEGIN IMMEDIATE")
+             do {
+-                let lockedVersion = version
++                guard let lockedVersion = Int(try Self.scalarText(opened, "PRAGMA user_version")) else {
++                    throw HistoryError.corrupted
++                }
+                 if lockedVersion == 0 {
+                     // Do not adopt an unknown existing database as an empty textbook store.
+                     guard try Self.scalarText(opened, "SELECT count(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'") == "0" else {

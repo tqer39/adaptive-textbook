@@ -1,0 +1,17 @@
+diff --git a/apple/Sources/TextbookUI/FeedReaderModel.swift b/apple/Sources/TextbookUI/FeedReaderModel.swift
+index ebc79b2..9c9f0ca 100644
+--- a/apple/Sources/TextbookUI/FeedReaderModel.swift
++++ b/apple/Sources/TextbookUI/FeedReaderModel.swift
+@@ -156,12 +156,6 @@ final class FeedReaderModel: ObservableObject {
+             // no newly deleted IDs. The retained IDs still describe every
+             // target-feed snapshot that survived the transaction.
+             var removedArticleIDs = result.deletedArticleIDs
+-            removedArticleIDs.formUnion(articles.lazy.filter {
+-                $0.feedID == subscription.id && !result.retainedArticleIDs.contains($0.id)
+-            }.map(\.id))
+-            removedArticleIDs.formUnion(searchResults.lazy.filter {
+-                $0.article.feedID == subscription.id && !result.retainedArticleIDs.contains($0.article.id)
+-            }.map(\.article.id))
+             removedArticleIDs.subtract(result.retainedArticleIDs)
+             articles.removeAll {
+                 $0.feedID == subscription.id && removedArticleIDs.contains($0.id)

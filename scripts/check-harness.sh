@@ -14,3 +14,9 @@ if [[ -n "$unformatted" ]]; then
 fi
 go vet ./...
 go test -race ./...
+
+# Preparation must preserve fixed criteria and must not expose a solved Git base.
+evaluation_binary="$(mktemp "${TMPDIR:-/tmp}/textbook-evaluation-harness.XXXXXX")"
+trap 'rm -f "$evaluation_binary"' EXIT
+go build -o "$evaluation_binary" ./cmd/harness
+EVALUATION_HARNESS_BINARY="$evaluation_binary" python3 "$task_root/scripts/test-native-evaluation.py"
