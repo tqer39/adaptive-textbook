@@ -78,6 +78,7 @@ class PreparationTests(unittest.TestCase):
 
     def arguments(self, variant):
         return SimpleNamespace(repository=self.repository, output=self.root / variant, variant=variant,
+                               case="native-unsubscribe",
                                harness_binary=self.binary, codex_binary=self.fake_codex,
                                codex_home=self.root, model="evaluation-model")
 
@@ -140,6 +141,30 @@ class PreparationTests(unittest.TestCase):
             PREPARATION.prepare(args)
         self.assertFalse((args.output / "task.json").exists())
         self.assertFalse(self.marker.exists())
+
+    def test_case_controls_select_a_core_edit_without_exposing_other_files(self):
+        case = self.repository / "harness/evaluations/history-initialization"
+        shutil.copytree(self.fixtures, case)
+        protocol = json.loads((case / "protocol.json").read_text())
+        core = "apple/Sources/TextbookCore/FeedLibrary.swift"
+        protocol["editableFiles"] = [core]
+        (case / "protocol.json").write_text(json.dumps(protocol))
+        args = self.arguments("recovery")
+        args.case = "history-initialization"
+        task = json.loads(PREPARATION.prepare(args).read_text())
+        workspace = args.output / "workspace"
+        protected = {Path(c["path"]).relative_to(workspace).as_posix() for c in task["protectedFiles"]}
+        self.assertNotIn(core, protected)
+        self.assertIn("apple/Sources/TextbookUI/FeedReaderModel.swift", protected)
+        self.assertFalse(self.marker.exists())
+
+    def test_undeclared_editable_path_is_refused_before_writes(self):
+        args = self.arguments("recovery")
+        self.protocol["editableFiles"] = ["not-a-fixed-control.swift"]
+        (self.fixtures / "protocol.json").write_text(json.dumps(self.protocol))
+        with self.assertRaisesRegex(ValueError, "editable files"):
+            PREPARATION.prepare(args)
+        self.assertFalse(args.output.exists())
 
 
 if __name__ == "__main__":

@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "name": "eval-history-initialization-focused",
+  "workspace": "@WORKSPACE@",
+  "goal": "Independently assess whether current history initialization satisfies the criteria. This is a source-only detection probe: no behavioral checks have been run for this candidate and missing execution alone is not the finding measured. Identify concrete defects without repairing them. Work only from current apple/Sources/TextbookCore/HistoryStore.swift, relevant textbook/answer definitions in Textbook.swift, and existing HistoryStoreTests.swift and HistoryInitializationIndependentRegressionTests.swift. Do not inspect Git history, other checkouts, prior solutions or parent chats. Do not delegate or run builds/tests. Host checks provide execution evidence. This is an isolated fixed evaluation, not permission to publish or merge. Retrieval guidance: locate HistoryStore.init(url:), its transaction/schema-version decisions and the corresponding concurrent-initialization tests first, using symbol searches and narrow source slices. Expand to relevant callers only when needed to resolve an uncertainty; avoid reprinting whole files already read. This changes retrieval order only: apply all criteria and do not assume a verdict.",
+  "acceptance": [
+    "Independent simultaneous first opens of the same empty history database both succeed and can save/read each other's answers; reopening preserves schema and answer data.",
+    "If another connection commits a future version before the initializer acquires its write lock, reject it as unsupportedSchema with the committed version without changing schema, rows or user_version.",
+    "If another connection creates an unknown unversioned schema before lock acquisition, reject it without adopting or mutating that database.",
+    "Preserve corruption refusal, rollback and connection cleanup, answer validation, immutable textbook/question version association, and duplicate/conflicting-answer behavior.",
+    "Only apple/Sources/TextbookCore/HistoryStore.swift may be edited during repair; tests, other product sources, metadata, task/check controls and documentation are immutable.",
+    "The fixed full Swift suite must pass before repaired source can qualify for product acceptance. Review-only probes without execution are detection measurements, never product acceptance."
+  ],
+  "checks": [
+    {
+      "command": [
+        "/usr/bin/git",
+        "diff",
+        "--check"
+      ],
+      "timeoutSeconds": 10
+    }
+  ],
+  "review": {
+    "kind": "codex",
+    "codex": {
+      "enabled": true,
+      "binary": "@CODEX_BINARY@",
+      "home": "@CODEX_HOME@",
+      "model": "@MODEL@"
+    },
+    "timeoutSeconds": 300
+  },
+  "maxRepairCycles": 0,
+  "timeoutSeconds": 420,
+  "logLimitBytes": 524288,
+  "maxOperations": 3
+}

@@ -92,5 +92,8 @@
     }
   ],
   "preparation": "Export base files, apply seed, then create a new repository whose only commit contains the faulty candidate. Never clone history into the fixture. Prepare tasks with existing freeze-task and prepare-product commands.",
-  "measurement": "Record every attempted trial, fixed oracle outcome, elapsed time, token coverage, cumulative tokens, repeated checks and recovery. Do not rerun for a preferred result. Read-only probes are detection measurements, not product acceptance."
+  "measurement": "Record every attempted trial, fixed oracle outcome, elapsed time, token coverage, cumulative tokens, repeated checks and recovery. Do not rerun for a preferred result. Read-only probes are detection measurements, not product acceptance.",
+  "editableFiles": [
+    "apple/Sources/TextbookUI/FeedReaderModel.swift"
+  ]
 }

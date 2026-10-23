@@ -83,6 +83,7 @@ run ID、タスク・ソース・ログのハッシュ、正確なカウンタ�
 mkdir -p .local-state
 mise exec -- go build -C harness -o "$PWD/.local-state/textbook-harness" ./cmd/harness
 python3 scripts/prepare-native-evaluation.py \
+  --case native-unsubscribe \
   --variant focused \
   --output /absolute/path/new-evaluation \
   --harness-binary "$PWD/.local-state/textbook-harness" \
@@ -91,7 +92,9 @@ python3 scripts/prepare-native-evaluation.py \
   --model AUTHORIZED_MODEL_ID
 ```
 
+caseは`native-unsubscribe`（互換性を維持した既定値）と[回答履歴の初期化](history-model-evaluation.ja.md)です。
 variantは`detection`・`focused`・`recovery`です。
+caseごとに編集可能なソースファイルを宣言し、修復ではそれ以外のcontrolsを固定します。
 修復は管理対象の`apple-tests`プロファイルとpreflightを使い、受け入れ条件を保持します。
 絶対パス・モデル・手順によってtask hashは変わるため、過去の非公開タスクとの一致は期待しません。
 `manifest.json`・`task.json`・評価用ソースを確認した後、既存CLIで明示的に実行します。
@@ -111,7 +114,7 @@ variantは`detection`・`focused`・`recovery`です。
 
 改訂した`snapshot-only-v2`の準備は、2026-10-23にモデル呼出しなしで検証しました。
 上記と同じ不具合入りソースハッシュを再現し、commitは不具合入りの1件のみで、正常な基準commitは解決できませんでした。
-4件の準備回帰テストで3種類のvariant、固定controls、既存出力の保存、パッチ・control改変の拒否を確認します。
+6件の準備回帰テストで3種類のvariant、caseごとの編集範囲、固定controls、既存出力の保存、パッチ・control改変の拒否を確認します。
 ローカルと既存のLinux/macOS CIで、`mise run harness:check`から実CLIを使って実行します。
 
 ### 改訂手順での修復結果
@@ -130,4 +133,6 @@ variantは`detection`・`focused`・`recovery`です。
 変更は許可したモデルファイルのみで、[修復パッチ](../harness/evaluations/native-unsubscribe/snapshot-v2-repair.patch)と操作ハッシュを結果レコードに保持しています。
 このrunでは観測されたGit経由の解答参照を取り除けました。ただし、明示した条件と既存テストがある既知の不具合であり、未知の課題ではありません。
 入力は元の修復より増えており、実行条件が変わった両者の時間・トークン差から効率の改善は結論しません。
-代表的な有効性の評価には、追加の固定製品ケースと、その見逃し・修復結果が必要です。
+別の[回答履歴初期化ケース](history-model-evaluation.ja.md)を加え、永続化境界も含む2ケースの計測を記録しています。
+より広い確信度には対象を明示した将来の評価コーパスが必要で、この結果を任意の製品開発へ一般化しません。
+Issue #6を閉じる前に、ハーネス関連PRのレビュー・統合が残っています。

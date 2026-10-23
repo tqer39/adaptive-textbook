@@ -1,0 +1,426 @@
+{
+  "date": "2026-10-23",
+  "case": "history-initialization",
+  "protocol": "snapshot-only-v2",
+  "plannedTrials": {
+    "createdBeforeAnyModelCall": "2026-10-23T11:10:13.520989+00:00",
+    "plannedTrials": [
+      "detection",
+      "focused",
+      "recovery"
+    ],
+    "retention": "All outcomes retained; no automatic retries or additional trials for preferred results.",
+    "model": "gpt-5.6-sol",
+    "base": "fe1ce0d4e1034643606eaad4b725421ee045aab4",
+    "taskFileSHA256": {
+      "detection": "cadb5f0e9d8681b0221f55829064e5834fff7ca5c0d95c602ea83d90f6f4b6e4",
+      "focused": "d9563e83912e390fe2c236ace6424a878d7cb483f84ca549e30f24de5e3eca14",
+      "recovery": "b02a8a319b6468e9698c176631f17b9a984ed3c7cb6e5bda46feaec24ac6dbba"
+    }
+  },
+  "trials": [
+    {
+      "id": "9d8d38b91e1bc250161e1e2b",
+      "taskHash": "01eab7ed4b64a7ddc8b0464a7cf2842d48e9dfc88408d4fcd45df6914043e223",
+      "status": "blocked",
+      "reason": "repair-budget-exhausted",
+      "codeHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+      "elapsedMillis": 36980,
+      "name": "detection",
+      "snapshotStale": false,
+      "history": {
+        "preflightOperations": 0,
+        "failedPreflightOperations": 0,
+        "operations": 2,
+        "elapsedMillis": 36980,
+        "repairCycles": 0,
+        "checkOperations": 1,
+        "failedCheckOperations": 0,
+        "repeatedCheckOperations": 0,
+        "modelOperations": 1,
+        "unidentifiedModelOperations": 0,
+        "modelTurns": 1,
+        "turnsWithTokenCounters": 1,
+        "recordedTokens": {
+          "inputTokens": 113165,
+          "outputTokens": 1623,
+          "cachedInputTokens": 81664,
+          "reasoningOutputTokens": 815,
+          "totalTokens": 114788
+        }
+      },
+      "seededDefectDetected": true,
+      "operations": [
+        {
+          "checkIndex": 0,
+          "operation": 1,
+          "phase": "checks",
+          "codeHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "afterHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:10:25.719775Z",
+          "durationMillis": 56,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "001.json"
+        },
+        {
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 113165,
+              "outputTokens": 1623,
+              "cachedInputTokens": 81664,
+              "reasoningOutputTokens": 815,
+              "totalTokens": 114788
+            },
+            "role": "review",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a16874-79d4-7e01-bc03-254307efe292",
+            "turnId": "01a16874-7c58-7753-83cf-a61fd72c66c0",
+            "quota": {
+              "checkedAt": "2026-10-23T11:10:26.900245Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 74,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          },
+          "operation": 2,
+          "phase": "review",
+          "codeHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "afterHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:10:25.829366Z",
+          "durationMillis": 36924,
+          "logHash": "fea9ca4af3a5d2b22c37ffe54f6dc75710c39672a7f0ca95fae7d7359e50a51b",
+          "logName": "002.json"
+        }
+      ]
+    },
+    {
+      "id": "3a56cb697e34bf1d9917876d",
+      "taskHash": "007414ceb2f6fc1246344c7d8e40434529e2a5450068d455bb1c8a36e4048dc7",
+      "status": "blocked",
+      "reason": "repair-budget-exhausted",
+      "codeHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+      "elapsedMillis": 33692,
+      "name": "focused",
+      "snapshotStale": false,
+      "history": {
+        "preflightOperations": 0,
+        "failedPreflightOperations": 0,
+        "operations": 2,
+        "elapsedMillis": 33692,
+        "repairCycles": 0,
+        "checkOperations": 1,
+        "failedCheckOperations": 0,
+        "repeatedCheckOperations": 0,
+        "modelOperations": 1,
+        "unidentifiedModelOperations": 0,
+        "modelTurns": 1,
+        "turnsWithTokenCounters": 1,
+        "recordedTokens": {
+          "inputTokens": 107579,
+          "outputTokens": 1473,
+          "cachedInputTokens": 58880,
+          "reasoningOutputTokens": 737,
+          "totalTokens": 109052
+        }
+      },
+      "seededDefectDetected": true,
+      "operations": [
+        {
+          "checkIndex": 0,
+          "operation": 1,
+          "phase": "checks",
+          "codeHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "afterHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:12:03.429432Z",
+          "durationMillis": 51,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "001.json"
+        },
+        {
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 107579,
+              "outputTokens": 1473,
+              "cachedInputTokens": 58880,
+              "reasoningOutputTokens": 737,
+              "totalTokens": 109052
+            },
+            "role": "review",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a16875-f74a-76c2-aa60-431a8638629f",
+            "turnId": "01a16875-fa0b-76f2-80a0-5daf70e0115f",
+            "quota": {
+              "checkedAt": "2026-10-23T11:12:04.606116Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 75,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          },
+          "operation": 2,
+          "phase": "review",
+          "codeHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "afterHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:12:03.538722Z",
+          "durationMillis": 33641,
+          "logHash": "9873cc3ccd3a97c80da8448f389e18fac18dce07018de4c9221d49899f719d03",
+          "logName": "002.json"
+        }
+      ]
+    },
+    {
+      "id": "f22adfb27ee7c22078d0a76c",
+      "taskHash": "808019addff7c3221548a6a498d218c406eb085a5b4199ba06ec3996bd252779",
+      "status": "accepted",
+      "reason": "",
+      "codeHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+      "elapsedMillis": 76805,
+      "name": "recovery",
+      "snapshotStale": false,
+      "history": {
+        "preflightOperations": 1,
+        "failedPreflightOperations": 0,
+        "operations": 7,
+        "elapsedMillis": 76805,
+        "repairCycles": 1,
+        "checkOperations": 4,
+        "failedCheckOperations": 1,
+        "repeatedCheckOperations": 0,
+        "modelOperations": 2,
+        "unidentifiedModelOperations": 0,
+        "modelTurns": 2,
+        "turnsWithTokenCounters": 2,
+        "recordedTokens": {
+          "inputTokens": 284196,
+          "outputTokens": 2647,
+          "cachedInputTokens": 207232,
+          "reasoningOutputTokens": 1395,
+          "totalTokens": 286843
+        }
+      },
+      "seededDefectDetected": null,
+      "operations": [
+        {
+          "preflightIndex": 0,
+          "operation": 1,
+          "phase": "preflight",
+          "codeHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "afterHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:13:01.433758Z",
+          "durationMillis": 164,
+          "logHash": "fc4c5bd86c7c8d98ef79dacc2338d57698c4eee0556d20bcb8e1348df3a90fdc",
+          "logName": "001.json"
+        },
+        {
+          "checkIndex": 0,
+          "operation": 2,
+          "phase": "checks",
+          "codeHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "afterHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:13:01.647418Z",
+          "durationMillis": 49,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "002.json"
+        },
+        {
+          "checkIndex": 1,
+          "operation": 3,
+          "phase": "checks",
+          "codeHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "afterHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "exitCode": 1,
+          "outcome": "command-failed",
+          "startedAt": "2026-10-23T11:13:01.74758Z",
+          "durationMillis": 14147,
+          "logHash": "b435a2961006d27d62f1296d3e9db7f3b77a2633a72b294b29886881f06de751",
+          "logName": "003.json"
+        },
+        {
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 118919,
+              "outputTokens": 927,
+              "cachedInputTokens": 85888,
+              "reasoningOutputTokens": 450,
+              "totalTokens": 119846
+            },
+            "role": "repair",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a16877-13d8-7161-881e-ecba371e6f9c",
+            "turnId": "01a16877-1697-7ef0-822c-ba91445552e3",
+            "quota": {
+              "checkedAt": "2026-10-23T11:13:17.427366Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 75,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          },
+          "operation": 4,
+          "phase": "repair",
+          "codeHash": "99950366e5badd11b860e5c5875454ab24cc431515a9484fc8a5639b016badb1",
+          "afterHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:13:15.988135Z",
+          "durationMillis": 18004,
+          "logHash": "a87704e8bf082e5208badd5270d90811451aa37d4da710fe5c5a382a87649abc",
+          "logName": "004.json"
+        },
+        {
+          "checkIndex": 0,
+          "operation": 5,
+          "phase": "checks",
+          "codeHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "afterHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:13:34.063499Z",
+          "durationMillis": 51,
+          "logHash": "ce23b690b1ba0b553ec416a2c080d33fea4191428954a8316ad922ebbfed1968",
+          "logName": "005.json"
+        },
+        {
+          "checkIndex": 1,
+          "operation": 6,
+          "phase": "checks",
+          "codeHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "afterHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:13:34.164916Z",
+          "durationMillis": 4001,
+          "logHash": "5ae61fb5a39eff6402201688f6784ae4d886a6c3feb4b64767efdff000064384",
+          "logName": "006.json"
+        },
+        {
+          "model": {
+            "turnStatus": "completed",
+            "reportedServiceTier": "default",
+            "tokens": {
+              "inputTokens": 165277,
+              "outputTokens": 1720,
+              "cachedInputTokens": 121344,
+              "reasoningOutputTokens": 945,
+              "totalTokens": 166997
+            },
+            "role": "review",
+            "requestedModel": "gpt-5.6-sol",
+            "resolvedModel": "gpt-5.6-sol",
+            "provider": "openai",
+            "serviceTier": "default",
+            "threadId": "01a16877-67da-7c42-815f-fbb1180ef2f3",
+            "turnId": "01a16877-6a74-7bf3-a497-36a21dce6a8b",
+            "quota": {
+              "checkedAt": "2026-10-23T11:13:38.919262Z",
+              "plan": "prolite",
+              "windows": [
+                {
+                  "bucket": "codex",
+                  "window": "primary",
+                  "usedPercent": 75,
+                  "durationMinutes": 10080,
+                  "resetsAt": 1793299817
+                }
+              ],
+              "creditsPresent": true,
+              "hasCredits": false,
+              "unlimitedCredits": false,
+              "spendControlUnknown": false
+            }
+          },
+          "operation": 7,
+          "phase": "review",
+          "codeHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "afterHash": "4d49c34bd33d79510f6cf0dc8d14360139ab8e5896a4f5c3b817fa1d40ebaaf1",
+          "exitCode": 0,
+          "outcome": "complete",
+          "startedAt": "2026-10-23T11:13:38.23117Z",
+          "durationMillis": 40389,
+          "logHash": "47622527a957ecb7946f44374d27cc756c6bf696f8d9532e2fdc4a15eb71833f",
+          "logName": "007.json"
+        }
+      ],
+      "repairPatchSHA256": "2e1feb0cf39a55e86e1ae34f074bf73ca31877a5423830fcb38d3804b2142831"
+    }
+  ],
+  "oracle": {
+    "initialTests": 107,
+    "initialFailures": 2,
+    "initialAffectedTests": [
+      "testConcurrentFirstOpenInitializersBothSaveAndReopenTheSameDatabase",
+      "testFutureVersionCommittedBeforeInitializationLockIsRefusedWithoutMutation"
+    ],
+    "finalTests": 107,
+    "finalFailures": 0,
+    "bundleRegression": "passed",
+    "fixedTestsUnchanged": true
+  },
+  "transcriptAudit": "All four turns used allowed current source/tests and canonical skill/contract text; the final reviewer also used supplied hash-linked check logs. No solved history, other checkouts, network calls or model-dispatched tests were observed. Only HistoryStore.swift changed.",
+  "limitations": [
+    "Known historical defect, explicit criteria and existing tests; not an unseen challenge.",
+    "One attempt per variant; no causal or general savings claim.",
+    "Focused total input fell but uncached input increased; counters are not a monetary bill.",
+    "The extra future-version-without-tables finding was source reasoning, not a separately executed oracle test.",
+    "Raw ledgers/logs remain private; public hashes do not independently authenticate unavailable logs.",
+    "The two-case matrix covers UI state and SQLite initialization, not generation quality or a general model ranking."
+  ]
+}

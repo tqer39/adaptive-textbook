@@ -83,6 +83,7 @@ Keep output private and outside the source checkout; use a fresh output director
 mkdir -p .local-state
 mise exec -- go build -C harness -o "$PWD/.local-state/textbook-harness" ./cmd/harness
 python3 scripts/prepare-native-evaluation.py \
+  --case native-unsubscribe \
   --variant focused \
   --output /absolute/path/new-evaluation \
   --harness-binary "$PWD/.local-state/textbook-harness" \
@@ -91,7 +92,9 @@ python3 scripts/prepare-native-evaluation.py \
   --model AUTHORIZED_MODEL_ID
 ```
 
+Cases are `native-unsubscribe` (the compatible default) and [history initialization](history-model-evaluation.md).
 Variants are `detection`, `focused` and `recovery`.
+Each case declares its editable source files; recovery leaves those editable while freezing the remaining controls.
 Recovery uses the maintained `apple-tests` profile, including preflight, and the unchanged acceptance criteria.
 Task hashes vary with absolute paths, model selection and protocol; do not expect them to match the historical private tasks.
 Inspect `manifest.json`, `task.json` and the fixture before explicitly running the existing CLI:
@@ -111,7 +114,7 @@ Audit actual reads: Git isolation does not sandbox filesystem access to other ch
 
 The revised `snapshot-only-v2` preparation was tested without model calls on 2026-10-23:
 it reproduced the exact faulty source hash above, had one faulty commit, and could not resolve the correct base commit.
-Four preparation regressions exercise all three variants, immutable controls, existing-output preservation and seed/control tampering refusal.
+Six preparation regressions exercise all three variants, case-specific edit boundaries, immutable controls, existing-output preservation and seed/control tampering refusal.
 They run through the real CLI under `mise run harness:check`, locally and in the existing Linux/macOS CI jobs.
 
 ### Revised-protocol recovery result
@@ -130,4 +133,6 @@ The repair's `git diff` compared its changes against the faulty initial commit.
 Only the permitted model file changed; the [repair patch](../harness/evaluations/native-unsubscribe/snapshot-v2-repair.patch) and operation hashes are retained in the result record.
 This removes the observed Git-solution exposure for this run. The case is still a known historical defect with explicit criteria and existing tests, not an unseen challenge.
 Its input count is higher than the original recovery; neither duration nor token differences establish efficiency across these changed execution conditions.
-Additional fixed product cases and their missed-finding/recovery outcomes remain necessary before assessing representative effectiveness.
+The separate [history initialization case](history-model-evaluation.md) adds a persistence boundary to the recorded two-case matrix.
+Broader confidence still requires an explicitly scoped future corpus; the existing results do not generalize to arbitrary product work.
+Review and integration of the pending harness PRs remain necessary before closing Issue #6.

@@ -23,8 +23,11 @@ def write_json(path, value):
 
 def prepare(args):
     repository = args.repository.resolve(strict=True)
-    fixtures = repository / "harness/evaluations/native-unsubscribe"
+    fixtures = repository / "harness/evaluations" / args.case
     protocol = json.loads((fixtures / "protocol.json").read_text())
+    editable = set(protocol["editableFiles"])
+    if not editable or not editable <= {control["path"] for control in protocol["controls"]}:
+        raise ValueError("editable files must be declared controls")
     patch = fixtures / "seed.patch"
     if sha256(patch) != protocol["seedPatchSHA256"]:
         raise ValueError("seed patch hash mismatch")
@@ -81,7 +84,7 @@ def prepare(args):
     frozen = output / "task.json"
     write_json(source, task)
     controls = [workspace / c["path"] for c in protocol["controls"]
-                if args.variant != "recovery" or c["path"] != "apple/Sources/TextbookUI/FeedReaderModel.swift"]
+                if args.variant != "recovery" or c["path"] not in editable]
     argv = [str(binary), "prepare-product" if args.variant == "recovery" else "freeze-task",
             "-task", str(source), "-output", str(frozen)]
     if args.variant == "recovery":
@@ -90,7 +93,7 @@ def prepare(args):
         argv += ["-file", str(path)]
     command(argv, repository)
     write_json(output / "manifest.json", {
-        "protocol": "snapshot-only-v2", "variant": args.variant,
+        "protocol": "snapshot-only-v2", "case": args.case, "variant": args.variant,
         "baseCommit": protocol["baseCommit"], "expectedSeedCodeHash": protocol["seedCodeHash"],
         "fixtureCommit": command(["git", "rev-parse", "HEAD"], workspace).decode().strip(),
         "seedPatchSHA256": sha256(patch), "taskSHA256": sha256(frozen),
@@ -104,6 +107,7 @@ def prepare(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", type=Path, default=Path(__file__).resolve().parent.parent)
+    parser.add_argument("--case", choices=["native-unsubscribe", "history-initialization"], default="native-unsubscribe")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--variant", choices=["detection", "focused", "recovery"], required=True)
     parser.add_argument("--harness-binary", type=Path, required=True)
