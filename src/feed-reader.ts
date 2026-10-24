@@ -1,5 +1,6 @@
 import { button, el } from "./ui";
 import { parseFeed, type Feed, type FeedArticle } from "./feed-parser";
+import { discoverFeeds, sourceURL, type FeedCandidate } from "./feed-discovery";
 import {
   openFeedLibrary,
   readFeedLibrary,
@@ -20,6 +21,11 @@ export async function feedReader(root: HTMLElement) {
     retry: (() => void) | null = null,
     connecting = true;
   let epoch = 0;
+  let candidates: FeedCandidate[] = [],
+    discoveryNotice = "",
+    discovering = false;
+  let discoveryEpoch = 0,
+    discoveryController: AbortController | null = null;
   const updating = new Set<string>(),
     changing = new Set<string>();
   const feedProblems = new Map<string, string>();
@@ -61,6 +67,8 @@ export async function feedReader(root: HTMLElement) {
   const navigation = el("section", undefined, "rss-navigation");
   navigation.setAttribute("aria-label", "収集メニュー");
   const main = el("main", undefined, "rss-main");
+  const discoveryPanel = el("section", undefined, "rss-discovery");
+  discoveryPanel.setAttribute("aria-label", "見つかった配信元");
   const errors = el("div", undefined, "rss-error");
   errors.setAttribute("role", "alert");
   errors.hidden = true;
@@ -111,7 +119,167 @@ export async function feedReader(root: HTMLElement) {
       render();
     }
   }
+  function clearDiscovery() {
+    discoveryEpoch++;
+    discoveryController?.abort();
+    discoveryController = null;
+    discovering = false;
+    candidates = [];
+    discoveryNotice = "";
+    renderDiscovery();
+  }
+  async function requestSource(
+    address: string,
+    signal: AbortSignal,
+    discover = false,
+  ) {
+    const response = await fetch("/api/feeds/fetch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: address,
+        ...(discover ? { discover: true } : {}),
+      }),
+      signal,
+    });
+    if (!response.ok)
+      throw Error(
+        response.status === 404
+          ? "この環境には取得サーバーがありません。ローカル起動を確認してください。"
+          : "取得できませんでした。公開HTTPSのURLか、通信状態を確認してください。",
+      );
+    const result = await response.json();
+    if (
+      typeof result?.url !== "string" ||
+      (typeof result?.xml !== "string" && typeof result?.html !== "string")
+    )
+      throw Error("取得サーバーの応答を確認してください。");
+    sourceURL(result.url);
+    return result as { url: string; xml?: string; html?: string };
+  }
+  async function discover(value: string) {
+    clearDiscovery();
+    let address: string;
+    try {
+      address = sourceURL(value);
+    } catch {
+      discoveryNotice =
+        "サイト・記事・RSSのURLを入力してください。公開HTTPSのサイトに対応しています。";
+      render();
+      return;
+    }
+    if (!db) return;
+    const ticket = discoveryEpoch;
+    const controller = new AbortController();
+    discoveryController = controller;
+    discovering = true;
+    render();
+    const timeout = setTimeout(() => controller.abort(), 16000);
+    try {
+      let result = await requestSource(address, controller.signal, true);
+      const find = (result: {
+        url: string;
+        xml?: string;
+        html?: string;
+      }): FeedCandidate[] => {
+        if (typeof result.xml === "string") {
+          const parsed = parseFeed(result.xml, result.url, result.url);
+          return [
+            {
+              url: result.url,
+              title: parsed.feed.title,
+              format: `${parsed.articles.length}件の記事`,
+            },
+          ];
+        }
+        return discoverFeeds(result.html!, result.url);
+      };
+      let found = find(result);
+      const home = new URL(result.url).origin + "/";
+      if (!found.length && result.url !== home) {
+        result = await requestSource(home, controller.signal, true);
+        found = find(result);
+      }
+      if (ticket === discoveryEpoch) {
+        candidates = found;
+        discoveryNotice = found.length
+          ? "登録する配信元を選んでください。"
+          : "配信元が見つかりませんでした。サイトでRSSが公開されていない場合があります。トップページのURLや、分かればRSSのURLで試してください。";
+      }
+    } catch (error) {
+      if (ticket === discoveryEpoch)
+        discoveryNotice = controller.signal.aborted
+          ? "時間内に見つけられませんでした。URLや通信状態を確認して、もう一度探してください。保存した記事は引き続き読めます。"
+          : (error as Error).message;
+    } finally {
+      clearTimeout(timeout);
+      if (ticket === discoveryEpoch) {
+        discovering = false;
+        discoveryController = null;
+        const focusSearch =
+          document.activeElement === document.body ||
+          ["feed-url", "rss-find-feeds"].includes(
+            document.activeElement?.id ?? "",
+          );
+        render();
+        if (focusSearch) {
+          discoveryPanel.querySelector<HTMLElement>("h2")?.focus();
+          discoveryPanel.scrollIntoView({ block: "start" });
+        }
+      }
+    }
+  }
+  function renderDiscovery() {
+    discoveryPanel.replaceChildren();
+    discoveryPanel.hidden =
+      !discovering && !candidates.length && !discoveryNotice;
+    const heading = el(
+      "h2",
+      discovering ? "配信元を探しています…" : "配信元を追加",
+    );
+    heading.tabIndex = -1;
+    const notice = el(
+      "p",
+      discovering
+        ? "サイトを確認しています。取得済みの記事はそのまま読めます。"
+        : discoveryNotice,
+    );
+    notice.setAttribute("role", "status");
+    discoveryPanel.append(heading, notice);
+    const list = el("ul", undefined, "rss-candidates");
+    for (const candidate of candidates) {
+      const item = el("li");
+      const registered = feeds.some((feed) => feed.url === candidate.url);
+      const add = button(
+        registered ? "登録済みの配信元を読む" : "登録して読む",
+        () => {
+          if (registered) {
+            source = candidate.url;
+            filter = "all";
+            selected = null;
+            clearDiscovery();
+            render();
+          } else void refresh(candidate.url, true);
+        },
+      );
+      add.disabled = !db || updating.has(candidate.url);
+      item.append(
+        el("h3", candidate.title),
+        el("p", `${candidate.format} · ${candidate.url}`, "muted"),
+        add,
+      );
+      list.append(item);
+    }
+    discoveryPanel.append(
+      list,
+      button("閉じる", () => {
+        clearDiscovery();
+        render();
+      }),
+    );
+  }
   async function refresh(value: string, registering = false) {
+    const registrationTicket = discoveryEpoch;
     let url: URL;
     try {
       url = new URL(value.trim());
@@ -120,7 +288,7 @@ export async function feedReader(root: HTMLElement) {
       url.hash = "";
     } catch {
       showError(
-        "HTTPSのRSS / Atom URLを入力してください。",
+        "公開HTTPSの配信元URLを選んでください。",
         () => void refresh(input, registering),
       );
       return;
@@ -144,20 +312,8 @@ export async function feedReader(root: HTMLElement) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 16000);
     try {
-      const response = await fetch("/api/feeds/fetch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: address }),
-        signal: controller.signal,
-      });
-      if (!response.ok)
-        throw Error(
-          response.status === 404
-            ? "この環境にはRSS取得サーバーがありません。ローカル起動を確認してください。"
-            : "RSSを取得できませんでした。URLや通信状態を確認してください。",
-        );
-      const result = await response.json();
-      if (typeof result.xml !== "string" || typeof result.url !== "string")
+      const result = await requestSource(address, controller.signal);
+      if (typeof result.xml !== "string")
         throw Error("RSS取得サーバーの応答を確認してください。");
       const parsed = parseFeed(result.xml, address, result.url);
       await mergeFeed(db, parsed.feed, parsed.articles);
@@ -165,7 +321,10 @@ export async function feedReader(root: HTMLElement) {
       announceChange();
       problem = "";
       if (registering) {
-        input = "";
+        if (registrationTicket === discoveryEpoch) {
+          clearDiscovery();
+          input = "";
+        }
         source = address;
         filter = "all";
         selected = null;
@@ -258,24 +417,42 @@ export async function feedReader(root: HTMLElement) {
     }
     navigation.append(menus);
     const form = el("form", undefined, "rss-add");
-    const label = el("label", "RSS / Atom URL");
+    const label = el("label", "サイト・RSSのURL");
     label.htmlFor = "feed-url";
     const field = el("input");
     field.id = "feed-url";
-    field.type = "url";
+    field.type = "text";
+    field.inputMode = "url";
+    field.maxLength = 2048;
+    field.autocapitalize = "off";
+    field.spellcheck = false;
     field.required = true;
-    field.placeholder = "https://example.com/feed.xml";
+    field.placeholder = "example.com や記事のURL";
     field.value = input;
     field.addEventListener("input", () => {
       input = field.value;
+      clearDiscovery();
+      submit.disabled = !db || connecting;
+      submit.textContent = "フィードを探す";
     });
-    const submit = el("button", "登録して取得");
+    const submit = el(
+      "button",
+      discovering ? "探しています…" : "フィードを探す",
+    );
+    submit.id = "rss-find-feeds";
     submit.type = "submit";
-    submit.disabled = !db || connecting;
-    form.append(label, field, submit);
+    submit.disabled = !db || connecting || discovering;
+    const hint = el(
+      "p",
+      "RSSのURLが分からなくても、サイトや記事のURLから探せます。",
+      "rss-add-hint",
+    );
+    hint.id = "rss-url-hint";
+    field.setAttribute("aria-describedby", hint.id);
+    form.append(el("h3", "サイトを追加"), label, field, hint, submit);
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      void refresh(field.value, true);
+      void discover(field.value);
     });
     navigation.append(form);
     if (!feeds.length) {
@@ -344,6 +521,8 @@ export async function feedReader(root: HTMLElement) {
       navigation.append(line);
     }
     const article = articles.find((a) => a.id === selected);
+    renderDiscovery();
+    main.append(discoveryPanel);
     if (article) {
       main.classList.add("rss-reading");
       main.append(
@@ -458,7 +637,7 @@ export async function feedReader(root: HTMLElement) {
             connecting
               ? "保存した記事を読み込んでいます…"
               : !feeds.length
-                ? "RSSを登録すると、ここに記事が届きます。URL欄から登録するか、公開フィードから試してください。"
+                ? "気になるサイトを追加すると、ここに記事が届きます。サイトのURLから探すか、公開フィードから試してください。"
                 : filter === "saved"
                   ? "まだ保存した記事はありません。記事を開いて「この記事を保存」を押してください。"
                   : filter === "unread"

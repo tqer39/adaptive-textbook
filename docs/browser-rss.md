@@ -5,11 +5,21 @@
 ## Run and try
 
 Run `mise exec -- npm run dev` and open <http://127.0.0.1:5173/>.
-The home screen collects information. Add a public HTTPS RSS/Atom URL, or select Zenn or Cloudflare Blog.
+The home screen collects information. In **サイトを追加**, enter a site, article or RSS/Atom URL and select **フィードを探す**.
+Domains without a scheme use HTTPS. Choose a named feed with **登録して読む**; discovered feeds are not subscribed automatically.
+Zenn and Cloudflare Blog remain one-click examples.
 Open an article, select **この記事を保存**, return to the list and select **保存した記事**.
 Reload to check the saved copy. **サンプル教材** opens the existing fixed CAA lesson separately; collection does not generate it.
 
-RSS acquisition runs inside the local Vite process through `/api/feeds/fetch`.
+Discovery reads the page's advertised RSS/Atom alternate links, including relative URLs and its HTML base URL.
+If an article page has no advertised feeds, it also checks the final site's home page, within the same 16-second client deadline.
+Up to 20 distinct candidates are shown. Changing the input cancels the search and discards stale results.
+The discovery HTML remains in an inert template: scripts, images and embedded frames are never mounted or executed.
+Chosen feeds and all redirects still pass the existing public-HTTPS and DNS checks.
+Sites that do not advertise a feed show a clear message; name/topic search, arbitrary crawling, guessed feed paths and generating feeds from feedless sites are not implemented.
+Previously collected articles remain readable and saveable during discovery or failure.
+
+RSS acquisition and page discovery run inside the local Vite process through `/api/feeds/fetch`; only discovery requests allow HTML responses.
 There is no new package, cloud deployment, login or paid model connection.
 `npm run build` creates static assets but does not create or deploy the RSS acquisition service.
 `vite preview` and the existing Workers deployment do not provide this new endpoint yet.
@@ -58,5 +68,6 @@ No Cloudflare/AWS service or LAN/public binding was enabled in this work.
 Only public HTTPS destinations on the standard port are accepted; URL credentials and literal IP addresses are rejected.
 DNS results must all be public addresses. The checked address is pinned to the TLS connection, while certificate validation uses the original hostname.
 Redirects are checked again, with at most three followed redirects. Requests have a 12-second total deadline and a 2 MB response limit.
-DOCTYPE/entity declarations are rejected. The local endpoint limits concurrent requests and body size, and does not forward cookies, authorization or arbitrary proxy options.
+RSS/Atom XML rejects DOCTYPE/entity declarations; discovery HTML can contain a normal HTML doctype and stays inert.
+The local endpoint limits concurrent requests and body size, and does not forward cookies, authorization or arbitrary proxy options.
 These controls do not make the local development endpoint ready for public deployment.

@@ -17,7 +17,7 @@ Articles, Japanese translations, bookmarks, and answer history are stored in SQL
 See the [native app and harness guide](docs/native-harness.md) and [tool/SaaS evaluation](docs/harness-tools.md).
 The development harness has been verified with live Codex implementation, review, and repair using the existing Pro login.
 See the [live validation results and reproduction steps](docs/codex-live-validation.md). This connection is separate from the product's lesson generation.
-The browser now starts with RSS/Atom registration, refresh, article reading and local saving.
+The browser starts with site/article URL discovery, RSS/Atom registration, refresh, article reading and local saving.
 See [startup, storage scope and backend choices by interface](docs/browser-rss.md).
 The lesson features below remain available through **サンプル教材**.
 
