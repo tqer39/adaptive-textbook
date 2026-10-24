@@ -6,8 +6,8 @@
 
 On 2026-10-24 the owner required collection while the PC sleeps or is powered off, not only while a browser page is open (Issue #61).
 The implementation uses the existing authenticated Cloudflare Worker and one account's `AccountVault` Durable Object.
-It is disabled by default and has been tested locally; this does not establish a deployed, continuously running service.
-No cloud deployment, billing change or real provider key was performed for this addition.
+It is disabled in the default local configuration. A dedicated owner-only Worker was published after approval on 2026-10-24, but Google authentication is still unconfigured and no account has started a collection schedule.
+The local alarm tests and published setup screen do not establish a continuously running collection service. No billing change or real provider key was performed.
 
 In **設定 → PCを閉じている間の収集**, explicitly start/update cloud subscriptions at 15, 30 or 60 minutes.
 The operation unions this browser's subscriptions with the existing cloud subscriptions, with at most 50 distinct feeds and 16 KB of URL data.
@@ -55,6 +55,19 @@ Older cloud snapshots cannot replace more recently fetched local feed/article co
 The cloud is a delivery queue, not a complete backup or multi-device article/history sync: a result is removed after one browser acknowledges it.
 Browser-local articles and marks remain local after logout; a shared browser profile is not an account-isolated local library.
 The cloud queue contains RSS-provided content. Fetching the linked article's full text, translation and speech still happen when using the browser.
+
+## Publication checkpoint — 2026-10-24
+
+The owner explicitly approved creation and publication of the dedicated environment, without a paid-plan change.
+The Dashboard showed Workers Free and 1,358/100,000 daily shared requests before publication.
+Created `quilna-private-auth` in APAC, applied `0001_better_auth.sql` and `0002_app_guard.sql`, and verified that no migrations remained.
+Published [quilna-private](https://quilna-private.tqer39.workers.dev/) from public source `540a99db516bebd7e1c80c5795e760309cf5cbe2` (same tree as local `c888c6e28c9945652a67c480ff28fde1a081b364`).
+Worker version `e0258954-546c-4312-a102-b04bc010eefc` received 100% of traffic.
+
+Live checks found HTTP 200 with only the setup-pending page at `/` and `/?view=feeds`, HTTP 401 for the app JavaScript, and HTTP 503 `auth-unconfigured` for auth/session/collection/feed-fetch APIs. All checked responses used `Cache-Control: no-store`.
+The deployed version confirmed `PRIVATE_DEV=true`, `global_fetch_strictly_public`, D1/DO bindings and asset routing through the Worker; the Dashboard confirmed preview URLs disabled.
+No authentication secrets or Google client ID were configured. The selected owner's email is configured privately, without including it in this record.
+Real owner login, rejection of another real account, authenticated edge acquisition and PC-off collection remain unverified. The owner must enter authentication secrets directly; do not send them through chat.
 
 ## Activation and validation
 
