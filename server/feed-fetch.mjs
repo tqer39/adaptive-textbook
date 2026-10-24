@@ -58,7 +58,7 @@ export function feedURL(value) {
 
 // The validated address is pinned to this TLS connection; the original hostname
 // is still used for certificate validation. Each redirect gets a fresh check.
-function exchange(url, address, signal) {
+function exchange(url, address, signal, allowHTML = false) {
   return new Promise((resolve, reject) => {
     const req = request(
       url,
@@ -70,7 +70,8 @@ function exchange(url, address, signal) {
           done(null, address.address, address.family),
         headers: {
           Accept:
-            "application/atom+xml, application/rss+xml, application/xml, text/xml",
+            "application/atom+xml, application/rss+xml, application/xml, text/xml" +
+            (allowHTML ? ", text/html, application/xhtml+xml" : ""),
           "Accept-Encoding": "identity",
           "User-Agent": "Quilna-RSS/0.1",
         },
@@ -91,7 +92,9 @@ function exchange(url, address, signal) {
           return;
         }
         const type = res.headers["content-type"] ?? "";
+        const html = /^(text\/html|application\/xhtml\+xml)(;|$)/i.test(type);
         if (
+          !(allowHTML && html) &&
           !/^(application\/(rss\+xml|atom\+xml|xml)|text\/(xml|plain))(;|$)/i.test(
             type,
           )
@@ -121,7 +124,9 @@ function exchange(url, address, signal) {
               )?.[1] ??
               "utf-8";
             resolve({
-              xml: new TextDecoder(charset, { fatal: true }).decode(data),
+              [html ? "html" : "xml"]: new TextDecoder(charset, {
+                fatal: true,
+              }).decode(data),
             });
           } catch {
             reject(Error("feed-encoding"));
@@ -136,7 +141,12 @@ function exchange(url, address, signal) {
 
 export async function fetchPublicFeed(
   value,
-  { resolve = lookup, send = exchange, timeout = 12000 } = {},
+  {
+    resolve = lookup,
+    send = exchange,
+    timeout = 12000,
+    allowHTML = false,
+  } = {},
 ) {
   const controller = new AbortController();
   const { signal } = controller;
@@ -164,8 +174,12 @@ export async function fetchPublicFeed(
             addresses.some((a) => !publicAddress(a.address))
           )
             throw Error("feed-address");
-          const result = await send(url, addresses[0], signal);
+          const result = await send(url, addresses[0], signal, allowHTML);
           signal.throwIfAborted();
+          if (allowHTML && typeof result.html === "string") {
+            if (result.html.length > 2_000_000) throw Error("feed-size");
+            return { url: url.href, html: result.html };
+          }
           if (typeof result.xml === "string") {
             if (
               result.xml.length > 2_000_000 ||
@@ -185,7 +199,10 @@ export async function fetchPublicFeed(
   }
 }
 
-export function feedMiddleware({ fetchFeed = fetchPublicFeed } = {}) {
+export function feedMiddleware({
+  fetchFeed = fetchPublicFeed,
+  fetchSource = (url) => fetchPublicFeed(url, { allowHTML: true }),
+} = {}) {
   let active = 0;
   return async (req, res, next) => {
     if (req.url?.split("?")[0] !== "/api/feeds/fetch") return next();
@@ -226,7 +243,9 @@ export function feedMiddleware({ fetchFeed = fetchPublicFeed } = {}) {
       } catch {
         return send(400, { error: "url" });
       }
-      const result = await fetchFeed(body.url);
+      const result = await (body.discover === true ? fetchSource : fetchFeed)(
+        body.url,
+      );
       return send(200, result);
     } catch {
       if (!res.destroyed) send(502, { error: "fetch" });

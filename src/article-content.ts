@@ -1,0 +1,217 @@
+import { Readability } from "@mozilla/readability";
+import { sourceURL } from "./feed-discovery";
+
+export type ArticleContent = {
+  text: string;
+  url: string;
+  title: string;
+  language: string;
+  fetchedAt: string;
+};
+export type ArticleTranslation = {
+  text: string;
+  sourceText: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+};
+export const articleTextLimit = 200_000;
+
+export function extractArticle(html: string, url: string): ArticleContent {
+  sourceURL(url);
+  if (html.length > 2_000_000)
+    throw Error("記事が大きすぎるため取り込めませんでした。");
+  // Never mount remote nodes. A template avoids subresource requests during parsing.
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const language =
+    /<html\b[^>]*\blang=["']([a-zA-Z-]+)["']/i.exec(html)?.[1] ?? "";
+  template.content
+    .querySelectorAll(
+      "script,style,iframe,object,embed,img,picture,video,audio,source,link,meta,base,form,nav,footer,template,svg,math,[hidden],[aria-hidden='true']",
+    )
+    .forEach((n) => n.remove());
+  for (const element of Array.from(template.content.querySelectorAll("*"))) {
+    for (const attr of Array.from(element.attributes)) {
+      if (!["class", "id", "lang", "dir"].includes(attr.name))
+        element.removeAttribute(attr.name);
+    }
+  }
+  const doc = document.implementation.createHTMLDocument("");
+  doc.body.append(doc.importNode(template.content, true));
+  doc.documentElement.lang = language;
+  doc.title =
+    doc.body.querySelector("title")?.textContent ||
+    doc.body.querySelector("h1")?.textContent ||
+    "";
+  doc.body.querySelectorAll("title").forEach((n) => n.remove());
+  const parsed = new Readability(doc, {
+    maxElemsToParse: 20000,
+    charThreshold: 140,
+    serializer: (node) => {
+      (node as Element)
+        .querySelectorAll("p,div,li,h1,h2,h3,h4,h5,h6,blockquote,pre,br,tr")
+        .forEach((n) => n.append("\n\n"));
+      return (node.textContent ?? "")
+        .replace(/[^\S\n]+/g, " ")
+        .replace(/\n\s*\n/g, "\n\n")
+        .trim();
+    },
+  }).parse();
+  const text = parsed?.content?.trim();
+  if (!text || text.length < 140)
+    throw Error(
+      "記事本文を見つけられませんでした。ログインやサイト側の制限がある場合は元の記事を開いてください。",
+    );
+  if (text.length > articleTextLimit)
+    throw Error(
+      "本文が20万文字を超えるため取り込めませんでした。元の記事を開いてください。",
+    );
+  return {
+    text,
+    url,
+    title: parsed?.title?.slice(0, 500) || new URL(url).hostname,
+    language: language.slice(0, 35),
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+export async function fetchArticle(url: string): Promise<ArticleContent> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 16000);
+  try {
+    const response = await fetch("/api/feeds/fetch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: sourceURL(url), discover: true }),
+      signal: controller.signal,
+    });
+    if (!response.ok)
+      throw Error(
+        "本文を取得できませんでした。通信状態やサイト側の制限を確認し、再試行するか元の記事を開いてください。",
+      );
+    const result = await response.json();
+    if (typeof result.html !== "string" || typeof result.url !== "string")
+      throw Error("このURLから記事のHTML本文を取得できませんでした。");
+    return extractArticle(result.html, result.url);
+  } catch (error) {
+    if (controller.signal.aborted)
+      throw Error(
+        "本文の取得が時間内に終わりませんでした。再試行してください。",
+      );
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function isLinkOnly(text: string): boolean {
+  return !text.trim() || /^Article URL:\s*https?:\/\//i.test(text.trim());
+}
+
+interface TranslatorSession {
+  translate(text: string): Promise<string>;
+  destroy(): void;
+}
+interface TranslatorFactory {
+  availability?(options: {
+    sourceLanguage: string;
+    targetLanguage: string;
+  }): Promise<string>;
+  create(options: {
+    sourceLanguage: string;
+    targetLanguage: string;
+    signal: AbortSignal;
+    monitor: (monitor: EventTarget) => void;
+  }): Promise<TranslatorSession>;
+}
+export function browserTranslator(): TranslatorFactory | undefined {
+  return (globalThis as typeof globalThis & { Translator?: TranslatorFactory })
+    .Translator;
+}
+export async function translateArticle(
+  text: string,
+  sourceLanguage: string,
+  targetLanguage: string,
+  signal: AbortSignal,
+  progress: (message: string) => void,
+  automatic = false,
+): Promise<ArticleTranslation> {
+  const factory = browserTranslator();
+  if (!factory)
+    throw Error(
+      "このブラウザは端末内翻訳に対応していません。外部翻訳サービスには送信していません。",
+    );
+  if (!sourceLanguage) throw Error("原文の言語を選択してください。");
+  if (sourceLanguage === targetLanguage)
+    throw Error("原文と翻訳先が同じ言語です。原文をそのまま読めます。");
+  // Background imports may finish after transient user activation expires.
+  // Only start those when this origin already has the language pair available.
+  if (automatic && !navigator.userActivation?.isActive) {
+    const availability = await factory.availability?.({
+      sourceLanguage,
+      targetLanguage,
+    });
+    signal.throwIfAborted();
+    if (availability !== "available")
+      throw Error(
+        "この言語の翻訳データを準備するため、翻訳ボタンを押してください。",
+      );
+  }
+  // Manual translation calls create before awaiting, retaining user activation.
+  const translator = await factory.create({
+    sourceLanguage,
+    targetLanguage,
+    signal,
+    monitor(monitor) {
+      monitor.addEventListener("downloadprogress", (event) => {
+        const loaded = (event as Event & { loaded: number }).loaded;
+        progress(`翻訳データを準備中… ${Math.round(loaded * 100)}%`);
+      });
+    },
+  });
+  const abort = () => translator.destroy();
+  signal.addEventListener("abort", abort, { once: true });
+  try {
+    signal.throwIfAborted();
+    const chunks = text
+      .split(/\n\s*\n/)
+      .filter((p) => p.trim())
+      .flatMap((paragraph) => {
+        const pieces: string[] = [];
+        let rest = paragraph;
+        while (rest.length > 3000) {
+          const prefix = rest.slice(0, 3000);
+          const boundary = Math.max(
+            prefix.lastIndexOf(" "),
+            prefix.lastIndexOf("。"),
+          );
+          let end = boundary > 1500 ? boundary + 1 : 3000;
+          if (/[\uD800-\uDBFF]/.test(rest[end - 1])) end--;
+          pieces.push(rest.slice(0, end));
+          rest = rest.slice(end);
+        }
+        if (rest) pieces.push(rest);
+        return pieces;
+      });
+    const translated: string[] = [];
+    for (const [index, chunk] of chunks.entries()) {
+      progress(`翻訳中… ${index + 1}/${chunks.length}`);
+      const result = await translator.translate(chunk);
+      signal.throwIfAborted();
+      if (!result.trim())
+        throw Error("翻訳結果が空でした。再試行してください。");
+      translated.push(result);
+      if (translated.join("\n\n").length > articleTextLimit * 2)
+        throw Error("翻訳結果が大きすぎるため保存できません。");
+    }
+    return {
+      text: translated.join("\n\n"),
+      sourceText: text,
+      sourceLanguage,
+      targetLanguage,
+    };
+  } finally {
+    signal.removeEventListener("abort", abort);
+    translator.destroy();
+  }
+}
