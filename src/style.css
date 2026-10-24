@@ -40,6 +40,15 @@ aside {
   top: 30px;
   align-self: start;
 }
+@media (min-width: 801px) {
+  aside {
+    max-height: calc(100vh - 60px);
+    max-height: calc(100dvh - 60px);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+  }
+}
 aside details summary {
   font-weight: 700;
 }
