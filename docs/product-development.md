@@ -12,7 +12,7 @@ Existing CI and necessary security maintenance may still validate native code an
 
 ## Acceptance loop
 
-1. Present one coherent browser learning flow: open a lesson, read and navigate, use diagrams, answer a question, understand its explanation, and reload/resume with the saved answer.
+1. Start browser acceptance with RSS/information collection, an article list, reading, saving and reopening. Then connect saved sources to textbook generation, contents/diagrams, questions/explanations and saved learning progress.
 2. Record the app/source version, browser/viewport and the owner's concrete observations.
 3. Reproduce and repair usability blockers, verify the affected behavior, then ask the owner to try the changed flow again.
 4. Continue browser work until explicit owner acceptance. Record what was accepted and which features remain unfinished before moving to another platform.
@@ -25,7 +25,7 @@ Do not represent a fixed sample lesson as completion of the full generated-textb
 ## Work ordering
 
 - Address security and data-loss problems first, including [security maintenance](security-maintenance.md).
-- Use Issue #41 for browser usability and concrete feedback; repair blocking defects before optional additions.
+- Use Issue #41 for browser usability and concrete feedback. Validate the [collection entry in #48](https://github.com/tqer39/quilna/issues/48) first; repair blocking defects before optional additions.
 - Continue the full source-to-textbook-to-comprehension workflow in [Issue #7](https://github.com/tqer39/quilna/issues/7) on the browser first.
 - Preserve source-aware sharing in [Issue #30](https://github.com/tqer39/quilna/issues/30) and paper discovery in [Issue #31](https://github.com/tqer39/quilna/issues/31) as follow-ups to the learning flow.
 - Keep native-only work deferred until the owner accepts the browser experience.

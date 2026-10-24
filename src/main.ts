@@ -81,11 +81,15 @@ let index = Math.max(
 let planStart = resume?.planStart ?? index;
 const root = document.querySelector<HTMLDivElement>("#app")!;
 const header = el("header");
+header.className = "lesson-header";
 header.append(
   el("a", "Quilna", "brand"),
   el("span", "SRE のための、小さな教科書", "muted"),
 );
 const byok = byokSettings();
+const collectionLink = el("a", "情報収集へ", "rss-text-link");
+collectionLink.href = "/?view=feeds";
+header.append(collectionLink);
 header.append(button("自分のAPIキー設定", byok.open));
 root.append(header, byok.dialog);
 root.append(accountSettings());

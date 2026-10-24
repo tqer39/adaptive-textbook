@@ -3,7 +3,7 @@ import { writeFile } from "node:fs/promises";
 test("read, interact, answer retry, reload, resume, back, time and mobile layout", async ({
   page,
 }, testInfo) => {
-  await page.goto("/");
+  await page.goto("/#read");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   if (testInfo.project.name === "mobile") {
     await page.getByText("このセクションの目次", { exact: true }).click();
@@ -66,7 +66,7 @@ test("read, interact, answer retry, reload, resume, back, time and mobile layout
   await expect(
     page.getByRole("heading", { name: "03 / 結果を予測する" }),
   ).toBeVisible();
-  await page.goto("/");
+  await page.goto("/#read");
   await page.getByRole("button", { name: /前回のブロックへ/ }).click();
   await saveSettled(page);
   await expect(
@@ -137,7 +137,7 @@ test("corrupt history is not overwritten", async ({ page }) => {
   await page.addInitScript(() =>
     localStorage.setItem("fieldnotes.history.v1", "corrupt"),
   );
-  await page.goto("/");
+  await page.goto("/#read");
   await expect(
     page.getByText(/既存データの上書きを止めています/),
   ).toBeVisible();
@@ -278,7 +278,7 @@ test("new predictions, applications and old answers survive the version update",
         }),
       );
   }, old);
-  await page.goto("/");
+  await page.goto("/#read");
   await expect(page.getByText(/旧版の回答は保存したまま/)).toBeVisible();
   await expect(
     page.getByRole("button", { name: /前回のブロックへ/ }),
@@ -423,7 +423,7 @@ test("basic explanations and operational guidance are always included", async ({
 test("compact reading, visible budget endpoint and explicit resume scope", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/#read");
   for (const [minutes, endpoint] of [
     ["5", "02"],
     ["10", "04"],

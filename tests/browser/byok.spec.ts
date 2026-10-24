@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 async function open(page: import("@playwright/test").Page) {
-  await page.goto("/");
+  await page.goto("/#read");
   await page
     .getByRole("button", { name: "自分のAPIキー設定", exact: true })
     .click();
