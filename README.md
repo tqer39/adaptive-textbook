@@ -1,8 +1,11 @@
-# TsumikiText
+# Quilna
 
 [English](README.md) | [日本語](README.ja.md)
 
-The repository name is `adaptive-textbook`. The current app and sample lessons are in Japanese.
+Quilna (クイルナ) helps people select information, think, and compile their own textbooks.
+The repository name is `quilna`; the canonical domain is [quilna.page](https://quilna.page).
+Domain registration, DNS connection, and production publication are not part of this rename.
+The current app and sample lessons are in Japanese.
 
 Product development now focuses on the browser until the owner explicitly accepts its usability.
 Native feature development is on hold; see the [development sequence and acceptance gate](docs/product-development.md).
@@ -17,7 +20,8 @@ The browser now starts with RSS/Atom registration, refresh, article reading and 
 See [startup, storage scope and backend choices by interface](docs/browser-rss.md).
 The lesson features below remain available through **サンプル教材**.
 
-An [owner-only development site](https://tsumiki-text.tqer39.workers.dev) has been published. Google authentication setup is pending.
+An owner-only development site was published under the previous name; Google authentication setup is pending.
+See the [existing deployment record](docs/dev-publication.md).
 Purchasing a production domain, publishing to production, and sending live LLM requests are outside this work.
 See the [minimum setup before publication](docs/workers-byok.md).
 

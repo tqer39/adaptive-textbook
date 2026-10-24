@@ -1,6 +1,6 @@
 ---
 name: search-performance-validation
-description: "Verify Tsumiki Text's article database and Japanese full-text search correctness and latency under write contention. Use for query, index, storage, concurrency, benchmark changes, or a requested 100 ms validation; not for documentation-only edits."
+description: "Verify Quilna's article database and Japanese full-text search correctness and latency under write contention. Use for query, index, storage, concurrency, benchmark changes, or a requested 100 ms validation; not for documentation-only edits."
 ---
 
 # Search Performance Validation

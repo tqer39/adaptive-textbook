@@ -8,7 +8,7 @@ import {
 } from "./feed-store";
 
 export async function feedReader(root: HTMLElement) {
-  document.title = "情報収集 | 積み木テキスト";
+  document.title = "情報収集 | Quilna";
   let db: IDBDatabase | null = null;
   let feeds: Feed[] = [],
     articles: FeedArticle[] = [];
@@ -28,7 +28,7 @@ export async function feedReader(root: HTMLElement) {
       ? null
       : new BroadcastChannel("tsumiki.rss.v1");
   const rootHeader = el("header", undefined, "rss-header");
-  const brand = el("a", "積み木テキスト", "brand");
+  const brand = el("a", "Quilna", "brand");
   brand.href = "/?view=feeds";
   const actions = el("div", undefined, "rss-header-actions");
   const lesson = el("a", "サンプル教材", "rss-text-link");

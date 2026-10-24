@@ -72,7 +72,7 @@ function exchange(url, address, signal) {
           Accept:
             "application/atom+xml, application/rss+xml, application/xml, text/xml",
           "Accept-Encoding": "identity",
-          "User-Agent": "TsumikiText-RSS/0.1",
+          "User-Agent": "Quilna-RSS/0.1",
         },
       },
       (res) => {
