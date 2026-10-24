@@ -136,7 +136,8 @@ No Cloudflare/AWS service or LAN/public binding was enabled in this work.
 ## Acquisition boundary
 
 Only public HTTPS destinations on the standard port are accepted; URL credentials and literal IP addresses are rejected.
-DNS results must all be public addresses. The checked address is pinned to the TLS connection, while certificate validation uses the original hostname.
+In the local Node endpoint, DNS results must all be public addresses. The checked address is pinned to the TLS connection, while certificate validation uses the original hostname.
+The authenticated Cloudflare endpoint uses the platform's strictly-public global fetch routing instead; see [the cloud acquisition boundary and deployment requirements](cloud-feed-collection.md).
 Redirects are checked again, with at most three followed redirects. Requests have a 12-second total deadline and a 2 MB response limit.
 RSS/Atom XML rejects DOCTYPE/entity declarations; discovery HTML can contain a normal HTML doctype and stays inert.
 The local endpoint limits concurrent requests and body size, and does not forward cookies, authorization or arbitrary proxy options.

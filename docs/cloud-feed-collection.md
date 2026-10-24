@@ -15,10 +15,12 @@ Adding another local subscription requires **設定を更新**; it does not sile
 **クラウド収集を停止** preserves pending results. Logging out does not stop an already configured collection job.
 Unavailable authentication, an unconfigured runtime, conflicting settings, fetch failures and full storage are reported instead of claiming successful collection.
 
-Cloud requests currently support only the exact publisher hosts `hnrss.org`, `zenn.dev` and `blog.cloudflare.com`, including redirects.
-This is an explicit network boundary: Workers does not reuse the Node adapter's DNS pinning. Other feeds remain unsupported by cloud collection and produce an error.
-The existing local Node endpoint still supports its wider public-HTTPS boundary.
-The authenticated cloud `/api/feeds/fetch` route also supports RSS discovery/article HTML for these hosts, bounded to 20 requests per account per minute.
+Cloud requests support public HTTPS publisher domains, rather than a fixed list of three hosts. The authenticated `/api/feeds/fetch` route uses the same policy for RSS discovery and article HTML, bounded to 20 requests per account per minute.
+URL credentials, nonstandard ports, literal/alternative IP forms, local/reserved names and the application's own hostname are rejected. Redirects are validated again and URL fragments are removed.
+Workers uses global `fetch` with the required [`global_fetch_strictly_public` compatibility flag](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public).
+Cloudflare documents public-Internet routing even for the Worker's own zone, instead of the default path that can bypass origin security controls. This implementation relies on that platform boundary; it does not pin DNS itself or use VPC/private-origin bindings.
+The separate local Node endpoint continues to validate DNS responses and pin a public address to the TLS connection. The offline Workers preview forbids outbound traffic.
+Sites that require login or script rendering, deny server requests, or do not serve a supported response may still fail with an explicit error; supporting arbitrary publisher domains is not a guarantee of successful extraction from every site.
 It does not forward browser cookies or authorization. Responses are limited to 2 MB with a 12-second deadline and three redirects; XML entities/DOCTYPE are rejected, while discovery HTML remains inert in the browser.
 
 ## Persistence and delivery
@@ -62,6 +64,8 @@ This is a separate deployment; the older `tsumiki-text` resources and domain set
 Copy the example to ignored `wrangler.cloud.jsonc`, replacing the account ID, workers.dev subdomain, newly created D1 ID and the one approved Google email.
 The example's identifiers are placeholders, not provisioned resources. Never deploy the example unchanged.
 Keep `PRIVATE_DEV="true"`, `assets.run_worker_first=true` and `preview_urls=false` so static files also pass through owner authentication.
+Keep `compatibility_flags=["global_fetch_strictly_public"]`; never enable `global_fetch_private_origin`. `security:check` and `workers:build` reject missing/conflicting routing flags in the tracked configs and any existing ignored owner configs, including environment overrides.
+These checks also reject owner-only configs that bypass the Worker for static assets or enable preview URLs. Verify the deployed flag/asset settings after publication; local validation does not inspect a later Dashboard edit.
 Set the Google Web client's exact redirect URI to `APP_ORIGIN + /api/auth/callback/google`.
 Enter `GOOGLE_CLIENT_SECRET` and `BETTER_AUTH_SECRET` directly in the target Worker's secret settings; configure `GOOGLE_CLIENT_ID` as a variable and retain it in the ignored config for subsequent deployments.
 RSS collection does not require a BYOK encryption keyring or an LLM provider key. Real-key entry and live AI sending remain disabled.
@@ -70,6 +74,7 @@ See [owner-only authentication](owner-only-setup.md) for verified-email enforcem
 ```bash
 cp wrangler.cloud.example.jsonc wrangler.cloud.jsonc
 # Replace placeholders in the ignored file; never commit owner-specific settings.
+npm run security:check
 npm run build
 npx wrangler deploy --config wrangler.cloud.jsonc --dry-run
 ```
@@ -100,4 +105,5 @@ The local runtime test uses real Durable Object storage/alarms and a synthetic o
 Core tests cover failed writes, duplicate alarm delivery, in-flight pause, durable backoff, capacity and acknowledgement recovery, redirects and response limits.
 Browser tests cover importing after reopen, lost acknowledgement, newer local content, failed local saves, start/stop, stale revisions and an unavailable service.
 Recovery regressions cover a malformed result before healthy articles, five failed results before another batch, concurrent removal, explicit retry, cancelled/failed/successful discard, and interval selection across reload/status checks.
-Live cloud activation, long-running operation, arbitrary cloud feed hosts, complete backup/multi-device sync and owner usability acceptance remain outstanding.
+Public-domain tests use synthetic responses from an unlisted publisher and another-domain redirect, including discovery HTML. They verify URL/redirect refusal, credential non-forwarding, the collection API/alarm and configuration gates; Miniflare fixtures do not prove Cloudflare edge routing or live publisher acceptance.
+Live cloud activation and edge routing checks, long-running operation, complete backup/multi-device sync and owner usability acceptance remain outstanding.

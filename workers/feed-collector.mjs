@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { hash } from "./crypto.mjs";
-import {
-  cloudFeedURL,
-  defaultFeedHosts,
-  fetchCloudFeed,
-} from "./feed-fetch.mjs";
+import { cloudFeedURL, fetchCloudFeed } from "./feed-fetch.mjs";
 
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const feedSchema = z
@@ -71,12 +67,12 @@ export class FeedCollector {
     storage,
     {
       enabled = false,
-      hosts = defaultFeedHosts,
+      blockedHosts = [],
       now = Date.now,
-      fetchFeed = (url) => fetchCloudFeed(url, { hosts }),
+      fetchFeed = (url) => fetchCloudFeed(url, { blockedHosts }),
     } = {},
   ) {
-    Object.assign(this, { storage, enabled, hosts, now, fetchFeed });
+    Object.assign(this, { storage, enabled, blockedHosts, now, fetchFeed });
   }
   async transaction(update) {
     return this.storage.transaction(async (tx) => {
@@ -109,7 +105,8 @@ export class FeedCollector {
       available: this.enabled,
       revision: state.revision,
       interval: state.interval,
-      hosts: this.hosts,
+      sourcePolicy: "public-https",
+      hosts: [],
       feeds: state.feeds.map((feed) => ({
         url: feed.url,
         nextAt: feed.nextAt,
@@ -134,7 +131,7 @@ export class FeedCollector {
       .object({ url: z.string().max(2048), discover: z.boolean().optional() })
       .strict()
       .parse(input);
-    cloudFeedURL(request.url, this.hosts);
+    cloudFeedURL(request.url, this.blockedHosts);
     await this.storage.transaction(async (tx) => {
       const recent = ((await tx.get("rss:requests")) ?? []).filter(
         (time) => time > this.now() - 60_000,
@@ -143,7 +140,7 @@ export class FeedCollector {
       await tx.put("rss:requests", [...recent, this.now()]);
     });
     return fetchCloudFeed(request.url, {
-      hosts: this.hosts,
+      blockedHosts: this.blockedHosts,
       allowHTML: request.discover === true,
     });
   }
@@ -151,7 +148,9 @@ export class FeedCollector {
     if (!this.enabled) throw Error("collection-unconfigured");
     const config = configSchema.parse(input);
     const urls = [
-      ...new Set(config.urls.map((url) => cloudFeedURL(url, this.hosts).href)),
+      ...new Set(
+        config.urls.map((url) => cloudFeedURL(url, this.blockedHosts).href),
+      ),
     ];
     if (byteLength(urls) > 16_000) throw Error("collection-capacity");
     return this.transaction(async (state, tx) => {
@@ -234,7 +233,7 @@ export class FeedCollector {
         let result, digest, failure;
         try {
           result = await this.fetchFeed(ticket.url);
-          cloudFeedURL(result.url, this.hosts);
+          cloudFeedURL(result.url, this.blockedHosts);
           if (
             typeof result.xml !== "string" ||
             result.xml.length > 2_000_000 ||

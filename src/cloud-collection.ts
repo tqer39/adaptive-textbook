@@ -22,6 +22,9 @@ const stateSchema = z.object({
     z.literal(60),
   ]),
   hosts: z.array(z.string().max(253)).max(50),
+  sourcePolicy: z
+    .enum(["listed-hosts", "public-https"])
+    .default("listed-hosts"),
   feeds: z
     .array(
       z.object({
@@ -53,7 +56,7 @@ const errors: Record<string, string> = {
     "ログイン中のアカウントが変わりました。画面を再読み込みしてください。",
   "collection-unconfigured": "クラウド収集はまだ有効になっていません。",
   "feed-host-unsupported":
-    "クラウド収集に未対応の配信元が含まれています。対応先を確認してください。",
+    "このURLはクラウドから取得できません。公開HTTPSのサイト・RSSを指定してください。内部アドレスやQuilna自身のURLは利用できません。",
   "collection-capacity":
     "クラウドの保存上限に達しました。取得済みの記事を取り込んでください。",
   "csrf-invalid": "ログインの状態を確認してから再試行してください。",

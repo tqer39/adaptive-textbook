@@ -22,13 +22,14 @@ test("real DO alarm collects without browser traffic, persists, isolates owners 
     })
   ).outputFiles[0].text;
   const origin = "http://collection.test",
-    url = "https://zenn.dev/feed";
+    url = "https://publisher.example.org/feed";
   const xml = `<rss><channel><title>Cloud</title><item><guid>one</guid><title>Collected while closed</title><description>${"😀".repeat(18000)}</description></item></channel></rss>`;
   let outbound = 0;
   const options = {
     modules: true,
     script,
     compatibilityDate: "2026-10-11",
+    compatibilityFlags: ["global_fetch_strictly_public"],
     durableObjects: {
       ACCOUNTS: { className: "AccountVault", useSQLite: true },
     },
@@ -38,6 +39,11 @@ test("real DO alarm collects without browser traffic, persists, isolates owners 
       assert.equal(request.url, url);
       assert.equal(request.headers.get("Cookie"), null);
       outbound++;
+      if (request.headers.get("Accept").includes("text/html"))
+        return new Response(
+          "<!DOCTYPE html><title>Public article</title><article>Readable content</article>",
+          { headers: { "Content-Type": "text/html" } },
+        );
       return new Response(xml, {
         headers: { "Content-Type": "application/rss+xml" },
       });
@@ -96,6 +102,7 @@ test("real DO alarm collects without browser traffic, persists, isolates owners 
   });
   assert.equal(configured.status, 200);
   assert.equal(configured.value.interval, 15);
+  assert.equal(configured.value.sourcePolicy, "public-https");
   // No dispatchFetch/browser request during this period: the runtime alarm wakes it.
   await delay(1800);
   assert.equal(outbound, 1);
@@ -230,4 +237,11 @@ test("real DO alarm collects without browser traffic, persists, isolates owners 
   assert.equal(foreground.status, 200);
   assert.equal(foreground.value.xml, xml);
   assert.equal(outbound, 2);
+  const article = await api("/api/feeds/fetch", {
+    method: "POST",
+    body: { url, discover: true },
+  });
+  assert.equal(article.status, 200);
+  assert.match(article.value.html, /Public article/);
+  assert.equal(outbound, 3);
 });

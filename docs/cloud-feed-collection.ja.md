@@ -15,10 +15,12 @@
 「クラウド収集を停止」しても未取り込み結果は残ります。ログアウトだけでは、設定済みの収集は停止しません。
 認証不可、実行環境の未設定、設定の競合、取得失敗、容量不足を表示し、成功した収集として扱いません。
 
-現在のクラウド取得先は、リダイレクトを含め、`hnrss.org`・`zenn.dev`・`blog.cloudflare.com`の完全一致ホストだけです。
-WorkersではNodeアダプターのDNS固定を再利用しないため、明示的に取得先を限定しています。それ以外の配信元はクラウド収集では未対応で、エラーを表示します。
-既存のローカルNodeエンドポイントは、従来の公開HTTPSの検証範囲を維持します。
-認証付きのクラウド版`/api/feeds/fetch`も、これらのホストについてRSS検出・記事HTML取得に対応し、アカウントごとに毎分20リクエストまでに制限します。
+クラウド取得先は3ホスト固定から、公開HTTPSの配信元ドメインに対応する方式へ変更しました。認証付きの`/api/feeds/fetch`もRSS検出・記事HTML取得に同じ条件を適用し、アカウントごとに毎分20リクエストまでに制限します。
+URL内の認証情報、標準以外のポート、直接指定・別表記のIP、ローカル・予約名、Quilna自身のホスト名は拒否します。リダイレクト先も再検証し、URLのフラグメントは除去します。
+Workersは必須の互換フラグ[`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public)を有効にしたglobal `fetch`を使います。
+Cloudflareの仕様では、自分のzone宛ても公開インターネット経由になり、既定のorigin保護を迂回し得る経路を使いません。この実装はそのプラットフォームの境界に依存し、独自のDNS固定やVPC・private-origin bindingは使いません。
+別実装のローカルNodeエンドポイントは引き続きDNS応答を検証し、公開アドレスへTLS接続を固定します。オフラインWorkersプレビューは外部通信を禁止します。
+ログインやスクリプト描画が必要なサイト、サーバーからの取得を拒否するサイト、対応する応答を返さないサイトは理由を示して失敗する場合があります。任意の配信元ドメインへの対応は、すべてのサイトで本文抽出に成功する保証ではありません。
 ブラウザのCookieや認証ヘッダーは転送しません。応答は2 MB、期限は12秒、リダイレクトは3回までで、XMLの実体・DOCTYPEを拒否し、検出用HTMLはブラウザ内で実行せず扱います。
 
 ## 永続化と受け渡し
@@ -62,6 +64,8 @@ Cloudflareのアラームは少なくとも1回の実行を保証するため、
 例をignoredの`wrangler.cloud.jsonc`へコピーし、account ID、workers.devのsubdomain、新規D1 ID、許可された本人のGoogleメール1件に置き換えます。
 例のIDはplaceholderであり、作成済み資源ではありません。そのままデプロイしないでください。
 静的ファイルも本人認証を通すため、`PRIVATE_DEV="true"`、`assets.run_worker_first=true`、`preview_urls=false`を維持します。
+`compatibility_flags=["global_fetch_strictly_public"]`を維持し、`global_fetch_private_origin`を有効にしないでください。`security:check`と`workers:build`は、追跡対象と存在するignoredの本人用設定について、環境別の上書きを含め、このフラグの欠落・競合を拒否します。
+本人限定設定で静的assetがWorkerを迂回する場合やpreview URLが有効な場合も拒否します。公開後は実際のフラグ・asset設定も確認してください。ローカルの検査では、その後のDashboard変更まで確認できません。
 Google Web clientのリダイレクトURIは`APP_ORIGIN + /api/auth/callback/google`の完全一致です。
 `GOOGLE_CLIENT_SECRET`と`BETTER_AUTH_SECRET`は対象WorkerのSecret設定へ直接入力し、`GOOGLE_CLIENT_ID`は変数へ設定して、次回デプロイ用にignoredの設定にも保持します。
 RSS収集にBYOK暗号鍵やLLMプロバイダーキーは不要です。実キー入力と実AI送信は無効のままです。
@@ -70,6 +74,7 @@ verified emailの検証と認証migrationは[本人限定の認証設定](owner-
 ```bash
 cp wrangler.cloud.example.jsonc wrangler.cloud.jsonc
 # ignoredの設定でplaceholderを置換する。本人固有の設定をcommitしない。
+npm run security:check
 npm run build
 npx wrangler deploy --config wrangler.cloud.jsonc --dry-run
 ```
@@ -100,4 +105,5 @@ Free対応という仕様だけでは、このアカウントの現在のプラ�
 共通処理のテストでは保存失敗、アラームの重複配送、取得中の停止、再試行待機の永続化、容量制限と受け取り確認後の復旧、リダイレクト、応答上限を確認します。
 ブラウザのテストでは再表示時の取り込み、確認応答の消失、新しいローカル本文の保持、ローカル保存失敗、開始・停止、古い設定リビジョン、未提供環境の表示を確認します。
 復旧の回帰テストでは正常な記事の前にある不正な結果、次の取得分の前にある失敗5件、別ブラウザによる削除、明示的な再試行、削除のキャンセル・失敗・成功、再読み込み・状態確認をまたぐ間隔選択を確認します。
-実クラウドでの有効化・長期運転、任意ホストのクラウド取得、完全バックアップ・端末間同期、オーナーの使いやすさの受け入れは未完了です。
+公開ドメインのテストでは、従来の一覧にない配信元と別ドメインへのリダイレクト、検出用HTMLを合成応答で扱います。URL・リダイレクトの拒否、認証情報を転送しないこと、収集API・アラーム、設定の検査を確認します。MiniflareのfixtureはCloudflareエッジでの経路や実配信元の受理を証明しません。
+実クラウドでの有効化・エッジの経路確認・長期運転、完全バックアップ・端末間同期、オーナーの使いやすさの受け入れは未完了です。

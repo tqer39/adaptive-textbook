@@ -11,6 +11,7 @@ export class AccountVault extends DurableObject {
     });
     this.collector = new FeedCollector(ctx.storage, {
       enabled: env.RSS_COLLECTION_ENABLED === "true",
+      blockedHosts: env.APP_ORIGIN ? [new URL(env.APP_ORIGIN).hostname] : [],
     });
   }
   async fetch(request) {

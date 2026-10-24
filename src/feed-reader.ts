@@ -403,7 +403,7 @@ export async function feedReader(root: HTMLElement) {
       : cloudError ||
         (!cloudState?.available
           ? "クラウド収集はまだ利用できません。現在は画面表示中の更新のみです。"
-          : `${cloudState.interval ? `クラウドで${cloudState.interval}分ごとに収集を設定済み` : "クラウド収集は停止中"}。未取り込みの取得結果：${cloudState.pending.length}件。${failures.length ? `取り込めない取得結果：${failures.length}件。下の理由を確認してください。` : ""}${cloudState.blocked ? "保存上限に達したため収集を一時停止しています。取得済みの記事を取り込んでください。" : ""}${cloudState.feeds.some((feed) => feed.error) ? "取得に失敗した配信元があります。再試行を待っています。" : ""} 対応する配信元：${cloudState.hosts.join("、")}。追加した購読先は「設定を更新」でクラウドに反映できます。`);
+          : `${cloudState.interval ? `クラウドで${cloudState.interval}分ごとに収集を設定済み` : "クラウド収集は停止中"}。未取り込みの取得結果：${cloudState.pending.length}件。${failures.length ? `取り込めない取得結果：${failures.length}件。下の理由を確認してください。` : ""}${cloudState.blocked ? "保存上限に達したため収集を一時停止しています。取得済みの記事を取り込んでください。" : ""}${cloudState.feeds.some((feed) => feed.error) ? "取得に失敗した配信元があります。再試行を待っています。" : ""} ${cloudState.sourcePolicy === "public-https" ? "公開HTTPSのサイト・RSSに対応します。ログインが必要なページや配信元側の制限により取得できない場合があります。" : `対応する配信元：${cloudState.hosts.join("、")}。`}追加した購読先は「設定を更新」でクラウドに反映できます。`);
   }
   function acceptCloudState(next: CloudCollectionState) {
     if (cloudState?.account !== next.account) cloudIntervalDirty = false;

@@ -190,6 +190,33 @@ test("disabled runtime makes no requests and repeated alarms respect the persist
   assert.equal((await f.collector.status()).pending.length, 1);
 });
 
+test("cloud fetch accepts an unlisted public publisher and a public redirect without forwarding credentials", async () => {
+  const calls = [];
+  const result = await fetchCloudFeed(
+    "https://publisher.example.org/feed#new",
+    {
+      send: async (address, init) => {
+        calls.push(address);
+        assert.equal(init.redirect, "manual");
+        assert.deepEqual(Object.keys(init.headers), ["Accept"]);
+        return calls.length === 1
+          ? new Response(null, {
+              status: 302,
+              headers: { Location: "https://feeds.example.net/news.xml" },
+            })
+          : new Response(xml, {
+              headers: { "Content-Type": "application/rss+xml" },
+            });
+      },
+    },
+  );
+  assert.deepEqual(calls, [
+    "https://publisher.example.org/feed",
+    "https://feeds.example.net/news.xml",
+  ]);
+  assert.deepEqual(result, { url: calls[1], xml });
+});
+
 test("cloud fetch restricts initial URLs and every redirect, and never forwards user cookies", async () => {
   let calls = 0;
   const send = async (_url, init) => {
@@ -203,7 +230,16 @@ test("cloud fetch restricts initial URLs and every redirect, and never forwards 
   };
   for (const value of [
     "http://zenn.dev/feed",
-    "https://zenn.dev.evil.org/feed",
+    "https://feed.localhost/feed",
+    "https://127.1/private",
+    "https://2130706433/private",
+    "https://0x7f000001/private",
+    "https://[::1]/private",
+    "https://[::ffff:127.0.0.1]/private",
+    "https://metadata.google.internal/",
+    "https://service.local./rss",
+    "https://home.arpa/rss",
+    "file:///etc/passwd",
     "https://user:pass@zenn.dev/feed",
     "https://zenn.dev:444/feed",
   ])
@@ -214,6 +250,25 @@ test("cloud fetch restricts initial URLs and every redirect, and never forwards 
   assert.equal(calls, 0);
   await assert.rejects(fetchCloudFeed(url, { send }), /feed-host-unsupported/);
   assert.equal(calls, 1);
+  await assert.rejects(
+    fetchCloudFeed("https://QUILNA.PUBLIC.ORG./rss", {
+      blockedHosts: ["quilna.public.org"],
+      send,
+    }),
+    /feed-host-unsupported/,
+  );
+  assert.equal(calls, 1);
+  await assert.rejects(
+    fetchCloudFeed(url, {
+      blockedHosts: ["quilna.public.org"],
+      send: async () =>
+        new Response(null, {
+          status: 302,
+          headers: { Location: "https://quilna.public.org/api/collection" },
+        }),
+    }),
+    /feed-host-unsupported/,
+  );
 });
 
 test("cloud fetch bounds responses and deadlines and rejects HTML and XML entities", async () => {

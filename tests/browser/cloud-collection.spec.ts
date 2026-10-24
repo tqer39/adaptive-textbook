@@ -12,6 +12,7 @@ const initial = () => ({
   revision: 0,
   interval: 0,
   hosts: ["zenn.dev"],
+  sourcePolicy: "public-https",
   feeds: [] as {
     url: string;
     nextAt: number;
@@ -30,7 +31,7 @@ const initial = () => ({
   bytes: 0,
   blocked: false,
 });
-async function seed(page: Page) {
+async function seed(page: Page, feedAddress = address) {
   await page.goto("/?view=feeds");
   await page.evaluate(
     async ({ address, time }) => {
@@ -61,7 +62,7 @@ async function seed(page: Page) {
       });
       db.close();
     },
-    { address, time },
+    { address: feedAddress, time },
   );
 }
 test("cloud results import after reopening, preserve newer local content and tolerate a lost acknowledgement", async ({
@@ -146,6 +147,7 @@ test("cloud results import after reopening, preserve newer local content and tol
 test("cloud settings start and stop explicitly; stale revisions show a recoverable conflict", async ({
   page,
 }) => {
+  const address = "https://publisher.example.org/feed";
   const state = initial();
   let conflict = false;
   await page.route("**/api/session", (route) =>
@@ -175,9 +177,12 @@ test("cloud settings start and stop explicitly; stale revisions show a recoverab
     }
     return route.fulfill({ json: state });
   });
-  await seed(page);
+  await seed(page, address);
   await page.reload();
   await page.getByRole("button", { name: "設定", exact: true }).click();
+  await expect(page.locator("#rss-cloud-status")).toContainText(
+    "公開HTTPSのサイト・RSSに対応",
+  );
   await page
     .getByLabel("クラウドの収集間隔", { exact: true })
     .selectOption("30");
