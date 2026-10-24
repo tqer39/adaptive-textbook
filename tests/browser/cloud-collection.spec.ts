@@ -190,6 +190,26 @@ test("cloud settings start and stop explicitly; stale revisions show a recoverab
   await expect(page.locator("#rss-cloud-status")).toContainText(
     "クラウドで30分ごと",
   );
+  await page.reload();
+  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await expect(
+    page.getByLabel("クラウドの収集間隔", { exact: true }),
+  ).toHaveValue("30");
+  await page
+    .getByLabel("クラウドの収集間隔", { exact: true })
+    .selectOption("60");
+  await page
+    .getByRole("button", {
+      name: "クラウドの状態確認・記事を取り込む",
+      exact: true,
+    })
+    .click();
+  await expect(page.locator("#rss-cloud-status")).toContainText(
+    "クラウドで30分ごと",
+  );
+  await expect(
+    page.getByLabel("クラウドの収集間隔", { exact: true }),
+  ).toHaveValue("60");
   conflict = true;
   await page
     .getByRole("button", { name: "クラウド収集を停止", exact: true })
@@ -271,4 +291,185 @@ test("a failed browser save never acknowledges the cloud result", async ({
   );
   expect(acknowledgements).toBe(0);
   expect(state.pending).toHaveLength(1);
+});
+
+test("a malformed snapshot stays recoverable without blocking healthy articles; discard needs explicit confirmation", async ({
+  page,
+}) => {
+  const state = initial();
+  const goodId = "f85a0f14-caff-4cc6-81f8-d4d00ca919ef";
+  const acknowledged: string[] = [];
+  const discarded: string[] = [];
+  let badReads = 0;
+  let loseDiscard = true;
+  await page.route("**/api/session", (route) =>
+    route.fulfill({ json: { csrfToken: csrf } }),
+  );
+  await page.route("**/api/collection**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.includes("/snapshots/")) {
+      const meta = state.pending.find((item) => path.endsWith(item.id));
+      if (meta?.id === snapshotId) badReads++;
+      return route.fulfill({
+        json: {
+          ...meta,
+          account,
+          xml: meta?.id === snapshotId ? "<rss>broken" : xml,
+        },
+      });
+    }
+    if (path.endsWith("/ack") || path.endsWith("/discard")) {
+      const ids: string[] = route.request().postDataJSON().ids;
+      expect(route.request().headers()["x-csrf-token"]).toBe(csrf);
+      expect(route.request().headers()["x-collection-account"]).toBe(account);
+      if (path.endsWith("/discard") && loseDiscard)
+        return route.fulfill({ status: 503, json: { status: "held" } });
+      (path.endsWith("/ack") ? acknowledged : discarded).push(...ids);
+      state.pending = state.pending.filter((item) => !ids.includes(item.id));
+    }
+    return route.fulfill({ json: state });
+  });
+  await seed(page);
+  state.interval = 30;
+  state.pending = [snapshotId, goodId].map((id) => ({
+    id,
+    feedUrl: address,
+    url: address,
+    fetchedAt: time,
+    parts: 1,
+    size: xml.length,
+  }));
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "While PC was off", exact: true }),
+  ).toBeVisible();
+  expect(acknowledged).toEqual([goodId]);
+  expect(state.pending.map((item) => item.id)).toEqual([snapshotId]);
+  await expect(page.locator("#rss-auto-refresh-status")).toContainText(
+    "1件の取得結果を取り込めません",
+  );
+  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await expect(page.locator("#rss-cloud-failures")).toContainText(
+    "RSS / Atomの形式を読み取れませんでした",
+  );
+  await page.locator("#rss-cloud-failures").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: test.info().outputPath("cloud-recovery.png") });
+  await expect(
+    page.getByLabel("クラウドの収集間隔", { exact: true }),
+  ).toHaveValue("30");
+  await page
+    .getByRole("button", {
+      name: "クラウドの状態確認・記事を取り込む",
+      exact: true,
+    })
+    .click();
+  await expect(page.locator("#rss-cloud-status")).toContainText(
+    "未取り込みの取得結果：1件",
+  );
+  expect(badReads).toBe(1);
+  await page
+    .getByRole("button", { name: "取り込めない取得結果を再試行", exact: true })
+    .click();
+  await expect.poll(() => badReads).toBe(2);
+  const remove = page.getByRole("button", {
+    name: "この取得結果を削除",
+    exact: true,
+  });
+  await expect(remove).toBeEnabled();
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await remove.click();
+  expect(discarded).toEqual([]);
+  page.once("dialog", (dialog) => dialog.accept());
+  await remove.click();
+  await expect(page.locator("#rss-cloud-status")).toContainText(
+    "接続できません",
+  );
+  expect(discarded).toEqual([]);
+  await expect(remove).toBeEnabled();
+  loseDiscard = false;
+  page.once("dialog", (dialog) => dialog.accept());
+  await remove.click();
+  await expect(page.locator("#rss-cloud-failures")).toBeEmpty();
+  expect(discarded).toEqual([snapshotId]);
+  await page.getByRole("button", { name: "閉じる", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "While PC was off", exact: true }),
+  ).toBeVisible();
+});
+
+test("five malformed snapshots do not starve the next batch, and a concurrently removed snapshot is harmless", async ({
+  page,
+}) => {
+  const state = initial();
+  const ids = Array.from(
+    { length: 7 },
+    (_, index) => `f85a0f14-caff-4cc6-81f8-d4d00ca919e${index}`,
+  );
+  const reads: string[] = [];
+  const acknowledged: string[] = [];
+  await page.clock.install();
+  await page.route("**/api/session", (route) =>
+    route.fulfill({ json: { csrfToken: csrf } }),
+  );
+  await page.route("**/api/collection**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.includes("/snapshots/")) {
+      const meta = state.pending.find((item) => path.endsWith(item.id));
+      expect(meta).toBeTruthy();
+      reads.push(meta!.id);
+      if (meta!.id === ids[5]) {
+        state.pending = state.pending.filter((item) => item.id !== ids[5]);
+        return route.fulfill({
+          status: 409,
+          json: { status: "snapshot-missing" },
+        });
+      }
+      return route.fulfill({
+        json: {
+          ...meta,
+          account,
+          xml: meta!.id === ids[6] ? xml : "<rss>broken",
+        },
+      });
+    }
+    if (path.endsWith("/ack")) {
+      const received: string[] = route.request().postDataJSON().ids;
+      acknowledged.push(...received);
+      state.pending = state.pending.filter(
+        (item) => !received.includes(item.id),
+      );
+    }
+    return route.fulfill({ json: state });
+  });
+  await seed(page);
+  state.interval = 30;
+  state.pending = ids.map((id) => ({
+    id,
+    feedUrl: address,
+    url: address,
+    fetchedAt: time,
+    parts: 1,
+    size: xml.length,
+  }));
+  await page.reload();
+  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await expect(page.locator("#rss-cloud-status")).toContainText(
+    "取り込めない取得結果：5件",
+  );
+  expect(reads).toEqual(ids.slice(0, 5));
+  await page.clock.fastForward(16000);
+  await expect(page.locator("#rss-cloud-status")).toContainText(
+    "未取り込みの取得結果：5件",
+  );
+  expect(reads).toEqual(ids);
+  expect(acknowledged).toEqual([ids[6]]);
+  await page.clock.fastForward(65000);
+  await expect(page.locator("#rss-cloud-status")).toContainText(
+    "取り込めない取得結果：5件",
+  );
+  expect(reads).toEqual(ids);
+  await page.getByRole("button", { name: "閉じる", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "While PC was off", exact: true }),
+  ).toBeVisible();
 });

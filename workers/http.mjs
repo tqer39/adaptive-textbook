@@ -104,15 +104,21 @@ export function createHandler({
               ]
             : snapshot && request.method === "GET"
               ? "collection-snapshot"
-              : url.pathname === "/api/collection/ack" &&
-                  request.method === "POST"
-                ? "collection-ack"
+              : ["/api/collection/ack", "/api/collection/discard"].includes(
+                    url.pathname,
+                  ) && request.method === "POST"
+                ? url.pathname.endsWith("/discard")
+                  ? "collection-discard"
+                  : "collection-ack"
                 : null;
         if (!action) return json(404, { status: "not-found" });
-        const data =
-          action === "collection-configure" || action === "collection-ack"
-            ? await readBody(request)
-            : null;
+        const data = [
+          "collection-configure",
+          "collection-ack",
+          "collection-discard",
+        ].includes(action)
+          ? await readBody(request)
+          : null;
         return stub.fetch(
           new Request("https://account.internal/command", {
             method: "POST",
@@ -210,6 +216,13 @@ export async function handleAccount(core, request, collector) {
         value = await collector.snapshot(command.id);
       else if (command.action === "collection-ack")
         value = await collector.acknowledge(command.data);
+      else if (command.action === "collection-discard")
+        value = await collector.acknowledge(
+          z
+            .object({ ids: z.array(z.string().uuid()).length(1) })
+            .strict()
+            .parse(command.data),
+        );
       else throw Error("collection-command");
       return json(200, { ...value, account: owner });
     }

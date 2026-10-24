@@ -38,7 +38,15 @@ Stored responses are untrusted source data; full RSS parsing and text extraction
 The next visible, online browser downloads at most five pending responses per pass, commits each to IndexedDB, then acknowledges their IDs.
 Pending work is checked after 15 seconds; otherwise status is checked after 60 seconds while the page is visible.
 Storage failures, navigation or lost responses retain unacknowledged server copies for retry. Acknowledgements are idempotent.
-Malformed stored XML remains pending with an explicit browser error; an administrative deletion/recovery UI is not implemented.
+Malformed XML or damaged stored snapshots remain pending with their feed URL, acquisition time and reason in Settings.
+They do not block healthy snapshots: each pass attempts up to five results that have not already failed in this page, and successful local saves are acknowledged separately.
+While only failed results remain, the browser checks status every 60 seconds without repeatedly downloading them. Reloading or **取り込めない取得結果を再試行** retries them.
+An item removed by another browser between status and download is skipped without stopping other imports.
+Each failed result has **この取得結果を削除**. It requires a confirmation explaining the permanent loss of that unimported cloud copy; cancelling preserves it.
+This explicit discard uses a separate authenticated, CSRF-protected endpoint accepting one ID, with the same owner isolation and transactional deletion as acknowledgements.
+A failed discard shows an error and remains retryable; a successful discard can release a capacity pause. Saved browser articles and subscriptions are unaffected.
+Network, account-validation and IndexedDB failures still stop the current pass and preserve unacknowledged results.
+The interval selector reflects the saved cloud interval on reopen; background status checks preserve an interval the user is currently editing.
 
 Merging keeps read/saved flags, stable saved copies, imported originals, translations and manual tags.
 Older cloud snapshots cannot replace more recently fetched local feed/article content.
@@ -91,4 +99,5 @@ Run `npm run workers:build`, `npm run test:workers`, `npm run test:browser` and 
 The local runtime test uses real Durable Object storage/alarms and a synthetic outbound RSS response. It waits without browser requests, then checks collection, restart persistence, ownership and CSRF.
 Core tests cover failed writes, duplicate alarm delivery, in-flight pause, durable backoff, capacity and acknowledgement recovery, redirects and response limits.
 Browser tests cover importing after reopen, lost acknowledgement, newer local content, failed local saves, start/stop, stale revisions and an unavailable service.
+Recovery regressions cover a malformed result before healthy articles, five failed results before another batch, concurrent removal, explicit retry, cancelled/failed/successful discard, and interval selection across reload/status checks.
 Live cloud activation, long-running operation, arbitrary cloud feed hosts, complete backup/multi-device sync and owner usability acceptance remain outstanding.

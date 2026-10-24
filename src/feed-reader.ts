@@ -310,6 +310,10 @@ export async function feedReader(root: HTMLElement) {
   cloudNotice.setAttribute("role", "status");
   cloudNotice.id = "rss-cloud-status";
   const cloudInterval = el("select");
+  let cloudIntervalDirty = false;
+  cloudInterval.addEventListener("change", () => {
+    cloudIntervalDirty = true;
+  });
   cloudInterval.id = "rss-cloud-interval";
   const cloudLabel = el("label", "クラウドの収集間隔");
   cloudLabel.htmlFor = cloudInterval.id;
@@ -330,6 +334,13 @@ export async function feedReader(root: HTMLElement) {
     "クラウドの状態確認・記事を取り込む",
     () => void checkCloud(),
   );
+  const cloudFailures = el("div");
+  cloudFailures.id = "rss-cloud-failures";
+  const cloudRetry = button("取り込めない取得結果を再試行", () => {
+    if (cloudBusy) return;
+    cloudClient.retryFailures();
+    void checkCloud();
+  });
   const cloudLogin = button("クラウド収集にログイン", async () => {
     const auth = new AuthClient();
     const status = await auth.status();
@@ -355,9 +366,31 @@ export async function feedReader(root: HTMLElement) {
     cloudCheck,
     cloudLogin,
     cloudNotice,
+    cloudFailures,
+    cloudRetry,
   );
   settings.insertBefore(cloudSection, translationSettings);
   function renderCloud() {
+    const failures = cloudState ? cloudClient.failures(cloudState) : [];
+    cloudRetry.hidden = !failures.length;
+    cloudRetry.disabled = cloudBusy;
+    cloudFailures.replaceChildren();
+    for (const item of failures) {
+      const entry = el("section");
+      const remove = button(
+        "この取得結果を削除",
+        () => void discardCloud(item.id),
+      );
+      remove.disabled = cloudBusy || !cloudState?.available;
+      entry.append(
+        el(
+          "p",
+          `${item.feedUrl}（${new Date(item.fetchedAt).toLocaleString()}）：${item.reason} クラウドに保持しています。他の取得結果の取り込みは続けます。`,
+        ),
+        remove,
+      );
+      cloudFailures.append(entry);
+    }
     cloudStart.disabled =
       cloudBusy || !cloudState?.available || !db || !feeds.length;
     cloudStop.disabled =
@@ -370,7 +403,13 @@ export async function feedReader(root: HTMLElement) {
       : cloudError ||
         (!cloudState?.available
           ? "クラウド収集はまだ利用できません。現在は画面表示中の更新のみです。"
-          : `${cloudState.interval ? `クラウドで${cloudState.interval}分ごとに収集を設定済み` : "クラウド収集は停止中"}。未取り込みの取得結果：${cloudState.pending.length}件。${cloudState.blocked ? "保存上限に達したため収集を一時停止しています。取得済みの記事を取り込んでください。" : ""}${cloudState.feeds.some((feed) => feed.error) ? "取得に失敗した配信元があります。再試行を待っています。" : ""} 対応する配信元：${cloudState.hosts.join("、")}。追加した購読先は「設定を更新」でクラウドに反映できます。`);
+          : `${cloudState.interval ? `クラウドで${cloudState.interval}分ごとに収集を設定済み` : "クラウド収集は停止中"}。未取り込みの取得結果：${cloudState.pending.length}件。${failures.length ? `取り込めない取得結果：${failures.length}件。下の理由を確認してください。` : ""}${cloudState.blocked ? "保存上限に達したため収集を一時停止しています。取得済みの記事を取り込んでください。" : ""}${cloudState.feeds.some((feed) => feed.error) ? "取得に失敗した配信元があります。再試行を待っています。" : ""} 対応する配信元：${cloudState.hosts.join("、")}。追加した購読先は「設定を更新」でクラウドに反映できます。`);
+  }
+  function acceptCloudState(next: CloudCollectionState) {
+    if (cloudState?.account !== next.account) cloudIntervalDirty = false;
+    cloudState = next;
+    if (!cloudIntervalDirty && next.interval)
+      cloudInterval.value = String(next.interval);
   }
   function scheduleCloud() {
     if (cloudTimer) clearTimeout(cloudTimer);
@@ -383,7 +422,9 @@ export async function feedReader(root: HTMLElement) {
     )
       cloudTimer = setTimeout(
         () => void checkCloud(),
-        cloudState.pending.length ? 15000 : 60000,
+        cloudState.pending.length > cloudClient.failures(cloudState).length
+          ? 15000
+          : 60000,
       );
   }
   async function checkCloud() {
@@ -391,16 +432,17 @@ export async function feedReader(root: HTMLElement) {
     cloudBusy = true;
     renderCloud();
     try {
-      cloudState = await cloudClient.status();
-      if (cloudState.available && cloudState.pending.length) {
+      const latest = await cloudClient.status();
+      acceptCloudState(latest);
+      if (latest.available && latest.pending.length) {
         try {
-          await cloudClient.importPending(db, cloudState);
+          await cloudClient.importPending(db, latest);
         } finally {
           // Earlier documents may already be committed when a later save/ACK fails.
           await load();
           announceChange();
         }
-        cloudState = await cloudClient.status();
+        acceptCloudState(await cloudClient.status());
       }
       cloudError = "";
     } catch (error) {
@@ -424,6 +466,33 @@ export async function feedReader(root: HTMLElement) {
       return error.message;
     return "クラウドの応答を確認できませんでした。取得済みの記事は保持しています。";
   }
+  async function discardCloud(id: string) {
+    if (!cloudState || cloudBusy) return;
+    const item = cloudClient
+      .failures(cloudState)
+      .find((item) => item.id === id);
+    if (
+      !item ||
+      !window.confirm(
+        `${item.feedUrl} の ${new Date(item.fetchedAt).toLocaleString()} の取得結果をクラウドから削除します。未取り込みの内容は失われ、元に戻せません。このブラウザの記事や購読設定は残ります。削除しますか？`,
+      )
+    )
+      return;
+    cloudBusy = true;
+    renderCloud();
+    try {
+      acceptCloudState(await cloudClient.discard(cloudState, id));
+      cloudError = "";
+    } catch (error) {
+      cloudError = cloudFailure(error);
+    } finally {
+      cloudBusy = false;
+      renderCloud();
+      render();
+      scheduleCloud();
+      collector.wake();
+    }
+  }
   async function configureCloud(stop: boolean) {
     if (!cloudState || cloudBusy) return;
     cloudBusy = true;
@@ -437,11 +506,13 @@ export async function feedReader(root: HTMLElement) {
               ...feeds.map((feed) => feed.url),
             ]),
           ];
-      cloudState = await cloudClient.configure(
+      const next = await cloudClient.configure(
         cloudState,
         urls,
         stop ? 0 : (Number(cloudInterval.value) as 15 | 30 | 60),
       );
+      cloudIntervalDirty = false;
+      acceptCloudState(next);
       cloudError = "";
     } catch (error) {
       cloudError = cloudFailure(error);
@@ -1335,6 +1406,11 @@ export async function feedReader(root: HTMLElement) {
       "muted",
     );
     collectionStatus.id = "rss-auto-refresh-status";
+    const failedImports = cloudState
+      ? cloudClient.failures(cloudState).length
+      : 0;
+    if (failedImports)
+      collectionStatus.textContent += ` ${failedImports}件の取得結果を取り込めません。設定で理由と再試行を確認してください。`;
     collectionStatus.setAttribute("role", "status");
     navigation.append(collectionStatus);
     const progress = el(

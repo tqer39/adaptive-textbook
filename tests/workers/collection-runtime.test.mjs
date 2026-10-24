@@ -112,6 +112,42 @@ test("real DO alarm collects without browser traffic, persists, isolates owners 
   assert.equal(wrongAccount.status, 403);
   assert.equal((await api(`/api/collection/snapshots/${id}`)).value.xml, xml);
   assert.equal(
+    (
+      await api("/api/collection/discard", {
+        method: "POST",
+        body: { ids: [id] },
+        csrf: "forged",
+      })
+    ).status,
+    403,
+  );
+  const otherCsrf = (await api("/api/session", { user: "test-b" })).value
+    .csrfToken;
+  assert.equal(
+    (
+      await api("/api/collection/discard", {
+        method: "POST",
+        body: { ids: [id] },
+        csrf: otherCsrf,
+        user: "test-b",
+      })
+    ).status,
+    200,
+  );
+  assert.equal((await api(`/api/collection/snapshots/${id}`)).value.xml, xml);
+  for (const ids of [[], [id, id]]) {
+    assert.equal(
+      (
+        await api("/api/collection/discard", {
+          method: "POST",
+          body: { ids },
+          csrf,
+        })
+      ).status,
+      409,
+    );
+  }
+  assert.equal(
     (await api(`/api/collection/snapshots/${id}`, { user: "test-b" })).value
       .status,
     "snapshot-missing",
@@ -143,7 +179,7 @@ test("real DO alarm collects without browser traffic, persists, isolates owners 
   );
   assert.equal(
     (
-      await api("/api/collection/ack", {
+      await api("/api/collection/discard", {
         method: "POST",
         body: { ids: [id] },
         csrf,
@@ -162,6 +198,20 @@ test("real DO alarm collects without browser traffic, persists, isolates owners 
     200,
   );
   assert.equal((await api("/api/collection")).value.pending.length, 0);
+  assert.equal(
+    (await api(`/api/collection/snapshots/${id}`)).value.status,
+    "snapshot-missing",
+  );
+  assert.equal(
+    (
+      await api("/api/collection/discard", {
+        method: "POST",
+        body: { ids: [id] },
+        csrf,
+      })
+    ).status,
+    200,
+  );
   assert.equal(outbound, 1);
   assert.equal(
     (
