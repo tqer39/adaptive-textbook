@@ -48,6 +48,37 @@ Cloudflareのアラームは少なくとも1回の実行を保証するため、
 
 ## 有効化と検証
 
+2026-10-24に、オーナーは**新しい本人限定のCloudflare環境**を選択しました。
+新規Worker `quilna-private`と新規D1 `quilna-private-auth`の準備には、`wrangler.cloud.example.jsonc`を使います。
+独立したデプロイであり、旧`tsumiki-text`の資源やドメイン設定は今回の変更先にしません。
+例をignoredの`wrangler.cloud.jsonc`へコピーし、account ID、workers.devのsubdomain、新規D1 ID、許可された本人のGoogleメール1件に置き換えます。
+例のIDはplaceholderであり、作成済み資源ではありません。そのままデプロイしないでください。
+静的ファイルも本人認証を通すため、`PRIVATE_DEV="true"`、`assets.run_worker_first=true`、`preview_urls=false`を維持します。
+Google Web clientのリダイレクトURIは`APP_ORIGIN + /api/auth/callback/google`の完全一致です。
+`GOOGLE_CLIENT_SECRET`と`BETTER_AUTH_SECRET`は対象WorkerのSecret設定へ直接入力し、`GOOGLE_CLIENT_ID`は変数へ設定して、次回デプロイ用にignoredの設定にも保持します。
+RSS収集にBYOK暗号鍵やLLMプロバイダーキーは不要です。実キー入力と実AI送信は無効のままです。
+verified emailの検証と認証migrationは[本人限定の認証設定](owner-only-setup.ja.md)を参照してください。
+
+```bash
+cp wrangler.cloud.example.jsonc wrangler.cloud.jsonc
+# ignoredの設定でplaceholderを置換する。本人固有の設定をcommitしない。
+npm run build
+npx wrangler deploy --config wrangler.cloud.jsonc --dry-run
+```
+
+dry runはWorkerをアップロードせずにbundleと設定を検査します。実資源やGoogleログインの検証ではありません。
+実際の資源作成・公開前には、対象アカウントの現在のWorkersプランと共有使用量を確認し、この対象の承認を得ます。
+初期運用案はWorkers Free、2フィードを30分間隔です（再試行・手動更新を除いて1日96回のフィード取得）。
+アプリは未取り込み100応答・20 MBで停止しますが、これは保存量の制限であり金額の上限ではありません。
+[Workers Free](https://developers.cloudflare.com/workers/platform/pricing/)と[SQLite Durable Objects Free](https://developers.cloudflare.com/durable-objects/platform/pricing/)にはアカウント共有枠があり、無料枠超過時は処理が失敗します。
+Free対応という仕様だけでは、このアカウントの現在のプランや実認証がCPU制限内で動くことは確認できません。
+有料プランへの自動変更は行いません。実際の費用・CPU・共有使用量は公開時に確認します。
+
+承認後に専用D1を作成し、`0001_better_auth.sql`、`0002_app_guard.sql`を順に適用し、Secretを設定して、この設定だけをデプロイします。
+匿名asset/API拒否、実際の本人ログイン、別アカウントの拒否、logout、保存の永続性を確認してから収集スケジュールを開始します。
+その後、Quilnaの全ブラウザタブを閉じ、再表示時にその後の収集時刻と記事取り込みを確認します。この実環境の証拠はローカルのアラーム検証と分けて記録します。
+「クラウド収集を停止」では未取り込み結果を保持します。`RSS_COLLECTION_ENABLED="false"`で再デプロイすれば、保存データを削除せずサービスを無効化できます。
+
 既存のBetter Authセッションでアカウントを検証し、呼び出し側から別の所有者を指定することはできません。
 収集設定の変更と受け取り確認には、アカウントセッションのCSRFトークンが必要です。応答の読み出しも検証済みの所有者に限定します。
 ブラウザは状態確認時のアカウント識別子も送信し、ログイン変更をまたいだ処理が別アカウントに適用されないようにします。

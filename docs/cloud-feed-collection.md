@@ -48,6 +48,37 @@ The cloud queue contains RSS-provided content. Fetching the linked article's ful
 
 ## Activation and validation
 
+On 2026-10-24 the owner selected a **new owner-only Cloudflare environment**.
+Use `wrangler.cloud.example.jsonc` for the proposed `quilna-private` Worker and a new `quilna-private-auth` D1 database.
+This is a separate deployment; the older `tsumiki-text` resources and domain setup are not deployment targets for this change.
+Copy the example to ignored `wrangler.cloud.jsonc`, replacing the account ID, workers.dev subdomain, newly created D1 ID and the one approved Google email.
+The example's identifiers are placeholders, not provisioned resources. Never deploy the example unchanged.
+Keep `PRIVATE_DEV="true"`, `assets.run_worker_first=true` and `preview_urls=false` so static files also pass through owner authentication.
+Set the Google Web client's exact redirect URI to `APP_ORIGIN + /api/auth/callback/google`.
+Enter `GOOGLE_CLIENT_SECRET` and `BETTER_AUTH_SECRET` directly in the target Worker's secret settings; configure `GOOGLE_CLIENT_ID` as a variable and retain it in the ignored config for subsequent deployments.
+RSS collection does not require a BYOK encryption keyring or an LLM provider key. Real-key entry and live AI sending remain disabled.
+See [owner-only authentication](owner-only-setup.md) for verified-email enforcement and the auth migrations.
+
+```bash
+cp wrangler.cloud.example.jsonc wrangler.cloud.jsonc
+# Replace placeholders in the ignored file; never commit owner-specific settings.
+npm run build
+npx wrangler deploy --config wrangler.cloud.jsonc --dry-run
+```
+
+A dry run checks bundling/configuration without uploading the Worker; it does not verify remote resources or Google login.
+Before actual provisioning/publication, confirm the selected account's current Workers plan and shared usage, then obtain approval for this target.
+The initial operating proposal is Workers Free with two feeds at a 30-minute interval (96 scheduled feed fetches/day before retries/manual refreshes).
+The application caps pending data at 100 snapshots/20 MB and pauses when full; these are storage bounds, not a monetary spending cap.
+[Workers Free](https://developers.cloudflare.com/workers/platform/pricing/) and [SQLite Durable Objects Free](https://developers.cloudflare.com/durable-objects/platform/pricing/) have account-wide quotas; exceeding free limits fails operations.
+Free eligibility does not establish that this account is currently on Free or that real authentication fits its CPU limit.
+Do not switch to a paid plan automatically. Actual costs, CPU and shared usage remain deployment checks.
+
+After approval, create the dedicated D1, apply `0001_better_auth.sql` then `0002_app_guard.sql`, set secrets, and deploy only this config.
+Verify anonymous asset/API rejection, real owner login, rejection of another account, logout and storage persistence before enabling a collection schedule.
+Then close all Quilna browser tabs and check a later persisted collection timestamp and imported articles after reopening; keep this live evidence separate from local alarm tests.
+Stop via **クラウド収集を停止** to preserve queued results. Setting `RSS_COLLECTION_ENABLED="false"` disables the service on redeployment without deleting storage.
+
 The existing Better Auth session verifies the account; callers cannot select a different owner.
 Collection changes/acknowledgements require the account session's CSRF token. Snapshot reads are scoped to the verified owner.
 Browser requests include the account identity observed in status so a login change cannot apply an in-flight operation to a different account.
