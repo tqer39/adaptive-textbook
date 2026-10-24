@@ -975,7 +975,12 @@ export async function feedReader(root: HTMLElement) {
         await load(id);
         announceChange(id);
         tagProgress = `タグを判定中：${done}/${pending.length}件`;
-        if (done % 25 === 0 || done === pending.length) render();
+        // Keep the cancel button attached and focused while progress advances.
+        // Rebuilding the whole list here can detach it between pointerdown/up.
+        if (done % 25 === 0 || done === pending.length) {
+          const progress = document.getElementById("rss-tag-progress");
+          if (progress) progress.textContent = tagProgress;
+        }
       }
       tagProgress = controller.signal.aborted
         ? `タグの判定を中止しました。${done}件の結果を保存済みです。`
@@ -1617,6 +1622,7 @@ export async function feedReader(root: HTMLElement) {
       }
       if (tagProgress) {
         const progress = el("p", tagProgress);
+        progress.id = "rss-tag-progress";
         progress.setAttribute("role", "status");
         main.append(progress);
       }

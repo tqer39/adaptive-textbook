@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+test.use({ timezoneId: "UTC" });
 const base = Date.parse("2026-10-24T00:00:00Z");
 const address = "https://publisher.example.org/rss";
 const xml = (label = "Updated") =>
@@ -138,7 +139,7 @@ test("failed updates back off across reload and recovery clears failure without 
   expect(requests).toBe(1);
   await wake(page, 21);
   await expect.poll(() => requests).toBe(2);
-  await expect(page.getByText(/次回更新の目安.*9:31/)).toBeVisible();
+  await expect(page.getByText(/次回更新の目安.*0:31/)).toBeVisible();
   fail = false;
   await wake(page, 30);
   expect(requests).toBe(2);

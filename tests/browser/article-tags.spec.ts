@@ -273,6 +273,12 @@ test("bulk classification can stop between records without dropping completed re
   await page
     .getByRole("button", { name: "未処理1003件のタグを判定", exact: true })
     .click();
+  const stop = await page
+    .getByRole("button", { name: "タグ判定を中止", exact: true })
+    .elementHandle();
+  await expect(page.getByText(/タグを判定中：[1-9]\d*\/1003件/)).toBeVisible();
+  // Progress must not detach the control while a pointer/keyboard action targets it.
+  expect(await stop!.evaluate((node) => node.isConnected)).toBe(true);
   await page
     .getByRole("button", { name: "タグ判定を中止", exact: true })
     .click();
