@@ -6,6 +6,7 @@ Quilna (クイルナ) helps people select information, think, and compile their 
 The repository name is `quilna`; the canonical domain is [quilna.page](https://quilna.page).
 Domain registration, DNS connection, and production publication are not part of this rename.
 The current app and sample lessons are in Japanese.
+See the [naming and domain decision](docs/branding.md) for the research scope and adoption judgment; [Issue #53](https://github.com/tqer39/quilna/issues/53) tracks domain registration, DNS connection, and Dev redeployment.
 
 Product development now focuses on the browser until the owner explicitly accepts its usability.
 Native feature development is on hold; see the [development sequence and acceptance gate](docs/product-development.md).

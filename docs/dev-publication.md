@@ -4,6 +4,7 @@
 
 The service is now Quilna (クイルナ), with canonical domain [quilna.page](https://quilna.page).
 Domain registration, DNS connection, and migration of the deployed environment have not been performed.
+[Issue #53](https://github.com/tqer39/quilna/issues/53) tracks that operational work; the [naming decision](branding.md) records the investigation and adoption judgment.
 The record below describes the owner-only Dev deployment under the previous name at `https://tsumiki-text.tqer39.workers.dev`.
 Google authentication setup is pending, so the login button is disabled. This is not a successful live-login verification.
 This is a fixed CAA lesson prototype; lesson generation, cloud history sync, and live LLM requests are unimplemented/disabled.
