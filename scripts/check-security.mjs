@@ -1,7 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkWorkerConfigs } from "./check-worker-config.mjs";
 
 export const nodeMinimums = { 22: "22.23.4", 24: "24.22.1", 26: "26.12.1" };
 export const nodeEngineRange = Object.values(nodeMinimums)
@@ -179,7 +178,6 @@ export function checkRepository(
     );
   const renovate = JSON.parse(text("renovate.json5"));
   errors.push(...inspectRenovate(renovate));
-  errors.push(...checkWorkerConfigs(root));
   return errors;
 }
 

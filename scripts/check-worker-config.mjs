@@ -1,5 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 // Treat origin-routing policy as part of the deployment contract. Checking only
@@ -32,6 +33,19 @@ export function inspectWorkerConfig(
     // Wrangler vars do not inherit from the top-level configuration.
     check({ ...config, ...env, vars: env.vars ?? {} }, `environment ${name}`);
   return errors;
+}
+
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  const errors = checkWorkerConfigs(
+    fileURLToPath(new URL("../", import.meta.url)),
+  );
+  if (errors.length) {
+    console.error(errors.join("\n"));
+    process.exitCode = 1;
+  } else console.log("Worker deployment configuration checks passed.");
 }
 
 export function checkWorkerConfigs(root) {

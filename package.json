@@ -16,7 +16,7 @@
     "workers:build": "node scripts/build-worker.mjs",
     "test:workers": "node --test tests/workers/*.test.mjs",
     "workers:local": "npm run build && node scripts/workers-local.mjs",
-    "security:check": "node scripts/check-security.mjs",
+    "security:check": "node scripts/check-security.mjs && node scripts/check-worker-config.mjs",
     "security:audit": "npm run security:check && npm audit --include=dev --audit-level=low",
     "test:search-performance": "playwright test --config playwright.search.config.ts",
     "check:browser": "npm run lint && npm test && npm run build && npm run test:browser && npm run test:search-performance"

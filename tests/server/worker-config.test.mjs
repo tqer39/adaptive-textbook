@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, mkdir, copyFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { execFileSync } from "node:child_process";
 import {
   inspectWorkerConfig,
   checkWorkerConfigs,
@@ -13,6 +14,35 @@ const safe = () => ({
   vars: { PRIVATE_DEV: "true" },
   assets: { run_worker_first: true },
   preview_urls: false,
+});
+test("pre-install security policy runs in a checkout without node_modules", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "quilna-bootstrap-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const path of [
+    "scripts/check-security.mjs",
+    "scripts/check-worker-config.mjs",
+    "package.json",
+    "package-lock.json",
+    ".npmrc",
+    "mise.toml",
+    "renovate.json5",
+    "harness/go.mod",
+    ".github/workflows/ci.yml",
+    ".github/workflows/security.yml",
+  ]) {
+    await mkdir(dirname(join(root, path)), { recursive: true });
+    await copyFile(new URL(`../../${path}`, import.meta.url), join(root, path));
+  }
+  const output = execFileSync(
+    process.execPath,
+    ["scripts/check-security.mjs"],
+    {
+      cwd: root,
+      encoding: "utf8",
+      stdio: "pipe",
+    },
+  );
+  assert.match(output, /Security policy checks passed/);
 });
 test("public fetch cannot silently fall back to private origin routing or unauthenticated assets", () => {
   assert.deepEqual(inspectWorkerConfig(safe()), []);
