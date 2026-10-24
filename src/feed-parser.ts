@@ -12,14 +12,17 @@ export type FeedArticle = {
 export type Feed = { url: string; title: string; fetchedAt: string };
 
 function plain(value: string, limit: number) {
-  const text = value
-    .replace(/<(script|style|iframe)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
-    .replace(/<\/(p|div|li|h[1-6]|blockquote)>|<br\s*\/?\s*>/gi, "\n\n")
-    .replace(/<[^>]*>/g, "");
-  // Decode entities in inert textarea text, never insert feed markup into the UI.
-  const decoder = document.createElement("textarea");
-  decoder.innerHTML = text.replace(/</g, "&lt;");
-  return decoder.value
+  // Template contents are inert: never mount these nodes. Read text only.
+  // Avoid tag-stripping regexes whose work grows quadratically on unmatched '<'.
+  const template = document.createElement("template");
+  template.innerHTML = value.replace(
+    /<\/(p|div|li|h[1-6]|blockquote)\s*>|<br\s*\/?\s*>/gi,
+    "\n\n",
+  );
+  template.content
+    .querySelectorAll("script, style, iframe")
+    .forEach((node) => node.remove());
+  return (template.content.textContent ?? "")
     .replace(/\r/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim()

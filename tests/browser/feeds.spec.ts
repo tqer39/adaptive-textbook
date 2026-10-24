@@ -309,3 +309,27 @@ test("future database versions are held without deleting subscriptions or lesson
   );
   expect(count).toBe(1);
 });
+
+test("long unmatched markup does not block reading or saving", async ({
+  page,
+}) => {
+  const xml = rss("<".repeat(300000));
+  await page.route("**/api/feeds/fetch", (route) =>
+    route.fulfill({ json: { xml, url: feedUrl } }),
+  );
+  await page.goto("/");
+  await register(page);
+  await page
+    .getByRole("button", { name: "保存して読み返す記事", exact: true })
+    .click();
+  await expect(page.locator(".rss-article-body")).toContainText(
+    "<".repeat(100),
+  );
+  await page
+    .getByRole("button", { name: "この記事を保存", exact: true })
+    .click();
+  await expect(page.locator("#rss-save-article")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+});
