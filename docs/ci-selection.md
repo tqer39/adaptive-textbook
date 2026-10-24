@@ -16,7 +16,7 @@ A new branch, manual event or unknown event selects all platforms. Git output is
 | Changed files | Selected product checks |
 | --- | --- |
 | Markdown under `docs/`, root README, Apple/harness README pairs | None; maintained security/lint and selector regressions still run |
-| `src/`, `server/`, `workers/`, `public/`, `tests/`, Web build/test config | Typecheck, unit/server, build, Worker tests and browser tests |
+| `src/`, `server/`, `workers/`, `public/`, `tests/`, Web build/test config | Typecheck, unit/server, build, Worker tests, browser tests and the 200 ms search gate |
 | `apple/` except README pairs | Swift tests/build and iOS simulator build |
 | `harness/` except README pairs and Go dependencies | Go harness checks on Linux and macOS |
 | Dependencies, runtime pins, scripts, workflows, skills, AGENTS, selector tests or any unrecognized path | All platforms |
@@ -29,6 +29,7 @@ The required `workflow-result` job uses `always()` and depends on selection, mai
 It accepts `skipped` only for a platform explicitly not selected. Failed, cancelled, missing or unexpectedly skipped selected jobs fail the required result.
 Missing selection outputs fail it too. This keeps an intentionally skipped unrelated build distinct from a missing verification.
 The workflow retains read-only permissions, immutable Action references and disabled checkout credential persistence.
+For selected Web changes, it records the checked-out SHA before browser validation, runs both the functional suite and the untagged/dense-tag search gate, and uploads synthetic reports for 14 days. Uploads also run after a validation failure, provided source recording succeeded and the job was not cancelled. Documentation-only runs skip the browser artifacts; missing evidence after validation starts is an upload error. Personal databases and unrelated local state are excluded.
 
 ## Validation and limits
 
@@ -39,10 +40,10 @@ mise exec -- npm test
 ```
 
 The regressions cover representative selections, mixed changes, renamed/deleted/newline-containing paths in a real temporary Git repository, base-only changes, invalid revisions and required-result failure/cancellation/skip behavior.
-The selection regression also runs on documentation-only CI, without requiring a product build.
+The selection regression also runs on documentation-only CI, without requiring a product build. A workflow-contract regression requires the functional/search steps and failure-evidence upload; the pre-integration workflow fails it because the search step is missing.
 Changes to the selector or workflow themselves force all product checks. A green full-matrix PR does not prove a later documentation-only run's job count or duration.
 After merging, compare an actual documentation-only run and a browser-only run with the previous workflow before claiming measured time savings.
-The product PR #63 remains separate and continues with its existing workflow until this change is reviewed and merged.
+PR #64 is stacked on the validated PR #63 branch (`codex/browser-reading-workflow`) so the CI diff preserves that product change's search gate and evidence upload. The application sources match PR #63. Neither PR is merged into main by this preparation; after #63 is integrated, retarget #64 to main and recheck the exact diff and required results before merging it.
 
 - [GitHub required-check guidance](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks)
 - [GitHub workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)

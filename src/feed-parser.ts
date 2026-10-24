@@ -1,3 +1,6 @@
+import type { FeedRefreshFailure } from "./feed-auto-refresh";
+import type { ArticleTags } from "./article-tags";
+import type { ArticleContent, ArticleTranslation } from "./article-content";
 export type FeedArticle = {
   id: string;
   feedUrl: string;
@@ -8,8 +11,18 @@ export type FeedArticle = {
   saved: boolean;
   read: boolean;
   fetchedAt: string;
+  content?: ArticleContent;
+  contentError?: string;
+  translation?: ArticleTranslation;
+  tags?: ArticleTags;
+  manualTags?: string[];
 };
-export type Feed = { url: string; title: string; fetchedAt: string };
+export type Feed = {
+  url: string;
+  title: string;
+  fetchedAt: string;
+  refreshFailure?: FeedRefreshFailure;
+};
 
 function plain(value: string, limit: number) {
   // Template contents are inert: never mount these nodes. Read text only.

@@ -58,8 +58,27 @@ jobs:
         run: npm run test:workers
       - if: needs.selection.outputs.web == 'true'
         run: npm exec --no -- playwright install --with-deps chromium
+      - name: Record browser validation source
+        id: browser-source
+        if: needs.selection.outputs.web == 'true'
+        run: |
+          mkdir -p test-results
+          git rev-parse HEAD > test-results/source-sha.txt
       - if: needs.selection.outputs.web == 'true'
         run: npm run test:browser
+      - if: needs.selection.outputs.web == 'true'
+        run: npm run test:search-performance
+      - name: Preserve browser validation evidence
+        if: ${{ !cancelled() && needs.selection.outputs.web == 'true' && steps.browser-source.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-validation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            test-results/
+            .local-state/search-performance/results/**/measurements.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
 
   harness:
     needs: selection

@@ -16,7 +16,7 @@ checkoutで全履歴を取得します。Gitの失敗やコミット識別子の
 | 変更ファイル | 選択する製品検査 |
 | --- | --- |
 | `docs/`内のMarkdown、ルートREADME、Apple/harnessのREADME英日ペア | 製品検査なし。既定のセキュリティ・lint・選択回帰は実行 |
-| `src/`、`server/`、`workers/`、`public/`、`tests/`、Webのビルド・テスト設定 | 型検査、単体/server、ビルド、Worker・ブラウザ検査 |
+| `src/`、`server/`、`workers/`、`public/`、`tests/`、Webのビルド・テスト設定 | 型検査、単体/server、ビルド、Worker・ブラウザ検査、200ms検索ゲート |
 | READMEペアを除く`apple/` | Swiftテスト・ビルド、iOS simulatorビルド |
 | READMEペアとGo依存を除く`harness/` | Linux/macOSのGoハーネス検査 |
 | 依存、実行環境の固定値、script、workflow、skill、AGENTS、選択テスト、未分類のパス | 全プラットフォーム |
@@ -29,6 +29,7 @@ checkoutで全履歴を取得します。Gitの失敗やコミット識別子の
 明示的に選択しなかったプラットフォームだけ`skipped`を受理します。必要なジョブの失敗・中断・欠落・予期しないskipでは必須判定も失敗します。
 選択出力の欠落も失敗にし、無関係なビルドの意図的な省略と、必要な検証の欠落を区別します。
 読取専用権限、変更不能なAction参照、checkout認証情報の非保持を維持します。
+Web変更を選択した場合はブラウザ検証前に対象SHAを記録し、機能テストとタグなし・大量タグ付きの検索ゲートを実行して、合成データの結果を14日間保存します。SHA記録に成功し、中断されていない場合は検証失敗後もアップロードします。文書だけの実行ではブラウザ成果物を省略し、検証開始後に証跡がなければアップロードエラーとします。個人DBや無関係なローカル状態は対象外です。
 
 ## 検証と制約
 
@@ -39,10 +40,10 @@ mise exec -- npm test
 ```
 
 回帰テストは、代表的な選択・混在変更・実際の一時Gitリポジトリでのrename/削除/改行入りパス・base側だけの変更・不正revision・必須判定の失敗/中断/skipを扱います。
-選択回帰は文書だけのCIでも実行し、製品ビルドを必要としません。
+選択回帰は文書だけのCIでも実行し、製品ビルドを必要としません。workflowの契約回帰で機能・検索検査と失敗時の証跡アップロードを必須にしています。統合前の設定では検索stepがなく、この回帰が失敗します。
 選択scriptやworkflow自体の変更では製品検査をすべて実行します。全体検証のPRが成功しても、その後の文書だけの実行のジョブ数・所要時間を証明しません。
 マージ後、実際の文書だけの実行とブラウザだけの実行を旧workflowと比較してから、実測の時間短縮を主張します。
-製品PR #63とは分離し、この変更がレビュー・マージされるまでは同PRの既存workflowを維持します。
+PR #64は検証済みPR #63のブランチ（`codex/browser-reading-workflow`）に依存する形とし、製品側の検索ゲートと証跡保存を維持したCI差分にします。アプリのソースはPR #63と同じです。この準備ではどちらのPRもmainへマージしません。#63の統合後は#64のbaseをmainへ変更し、正確な差分と必須判定を再確認してから統合します。
 
 - [GitHubの必須チェックの説明](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks)
 - [GitHubのworkflow構文](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)

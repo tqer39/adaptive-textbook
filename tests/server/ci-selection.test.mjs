@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import {
+  readFileSync,
+  mkdtempSync,
+  writeFileSync,
+  mkdirSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -150,4 +156,50 @@ test("required result accepts intentional skips but rejects missing, failed, can
   const unexpected = result();
   unexpected.harness.result = "success";
   assert.ok(checkResults(unexpected).length > 0);
+});
+
+test("the selected web job retains functional and 200ms search gates plus failure evidence", () => {
+  const workflow = readFileSync(
+    new URL("../../.github/workflows/ci.yml", import.meta.url),
+    "utf8",
+  );
+  const checks = workflow.slice(
+    workflow.indexOf("  checks:\n"),
+    workflow.indexOf("  harness:\n"),
+  );
+  // These reviewed workflows use explicit block-style steps (also checked by actionlint).
+  const steps = checks.split(/(?=^ {6}- )/m).slice(1);
+  for (const command of [
+    "npm run test:browser",
+    "npm run test:search-performance",
+  ]) {
+    const matching = steps.filter((step) =>
+      step.split("\n").some((line) => line.trim() === `run: ${command}`),
+    );
+    assert.equal(matching.length, 1, `required web gate: ${command}`);
+    assert.match(matching[0], /- if: needs\.selection\.outputs\.web == 'true'/);
+    assert.doesNotMatch(matching[0], /continue-on-error:/);
+  }
+  const source = steps.find((step) => /id: browser-source/.test(step));
+  assert.ok(source, "record the source before starting browser validation");
+  assert.match(source, /if: needs\.selection\.outputs\.web == 'true'/);
+  assert.match(source, /git rev-parse HEAD > test-results\/source-sha\.txt/);
+  const evidence = steps.find((step) =>
+    /uses: actions\/upload-artifact@/.test(step),
+  );
+  assert.ok(evidence, "retain failures as well as passing measurements");
+  assert.equal(
+    evidence
+      .split("\n")
+      .find((line) => line.trim().startsWith("if:"))
+      ?.trim(),
+    "if: ${{ !cancelled() && needs.selection.outputs.web == 'true' && steps.browser-source.outcome == 'success' }}",
+  );
+  assert.match(evidence, /test-results\//);
+  assert.match(
+    evidence,
+    /\.local-state\/search-performance\/results\/\*\*\/measurements\.json/,
+  );
+  assert.match(evidence, /include-hidden-files: true/);
+  assert.match(evidence, /if-no-files-found: error/);
 });
