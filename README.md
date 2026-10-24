@@ -8,7 +8,7 @@ Domain registration, DNS connection, and production publication are not part of 
 The current app and sample lessons are in Japanese.
 See the [naming and domain decision](docs/branding.md) for the research scope and adoption judgment; [Issue #53](https://github.com/tqer39/quilna/issues/53) tracks domain registration, DNS connection, and Dev redeployment.
 
-Product development now focuses on the browser until the owner explicitly accepts its usability.
+Complete all agreed product features in the browser and obtain explicit owner usability acceptance before advancing to iOS/macOS, one platform at a time.
 Native feature development is on hold; see the [development sequence and acceptance gate](docs/product-development.md).
 
 The minimal SwiftUI apps for macOS and iOS are in `apple/`; the Go development harness is in `harness/`.
