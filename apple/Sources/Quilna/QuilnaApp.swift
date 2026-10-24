@@ -2,7 +2,7 @@ import SwiftUI
 import TextbookUI
 
 @main
-struct TsumikiTextApp: App {
+struct QuilnaApp: App {
     private let dataDirectory: URL?
 
     init() {

@@ -638,7 +638,7 @@ test("private Dev exposes only a pending login page when unconfigured, blocks as
     a = f.browser();
   const page = await a.api("/");
   assert.equal(page.status, 200);
-  assert.match(page.value, /積み木テキスト/);
+  assert.match(page.value, /Quilna/);
   assert.match(page.value, /設定準備中/);
   assert.match(page.value, /<button id="login" disabled/);
   assert.ok(!page.value.includes("PRIVATE-READER-ASSET"));

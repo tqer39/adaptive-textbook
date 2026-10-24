@@ -2,7 +2,7 @@ import SwiftUI
 import TextbookUI
 
 @main
-struct TsumikiTextIOSApp: App {
+struct QuilnaIOSApp: App {
     var body: some Scene {
         WindowGroup { ReaderAppView() }
     }

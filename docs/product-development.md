@@ -4,7 +4,7 @@
 
 ## Browser first
 
-The owner's decision on 2026-10-24 is tracked in [Issue #41](https://github.com/tqer39/adaptive-textbook/issues/41).
+The owner's decision on 2026-10-24 is tracked in [Issue #41](https://github.com/tqer39/quilna/issues/41).
 Concentrate product development on the browser and iterate until the owner explicitly judges it easy to use.
 Keep macOS/iOS feature development, native UI experiments, packaging/distribution, device performance work and native model evaluations on hold until that acceptance.
 Preserve existing native code, PRs and dated evidence; unfinished native issues remain open.
@@ -26,8 +26,8 @@ Do not represent a fixed sample lesson as completion of the full generated-textb
 
 - Address security and data-loss problems first, including [security maintenance](security-maintenance.md).
 - Use Issue #41 for browser usability and concrete feedback; repair blocking defects before optional additions.
-- Continue the full source-to-textbook-to-comprehension workflow in [Issue #7](https://github.com/tqer39/adaptive-textbook/issues/7) on the browser first.
-- Preserve source-aware sharing in [Issue #30](https://github.com/tqer39/adaptive-textbook/issues/30) and paper discovery in [Issue #31](https://github.com/tqer39/adaptive-textbook/issues/31) as follow-ups to the learning flow.
+- Continue the full source-to-textbook-to-comprehension workflow in [Issue #7](https://github.com/tqer39/quilna/issues/7) on the browser first.
+- Preserve source-aware sharing in [Issue #30](https://github.com/tqer39/quilna/issues/30) and paper discovery in [Issue #31](https://github.com/tqer39/quilna/issues/31) as follow-ups to the learning flow.
 - Keep native-only work deferred until the owner accepts the browser experience.
 
 This sequencing decision does not authorize paid provider calls, new credentials, publication or merging unrelated PRs.

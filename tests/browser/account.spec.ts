@@ -6,8 +6,8 @@ test("unconfigured real login UI stays off and reading/mock settings still work"
   page,
 }, info) => {
   await page.goto("/");
-  await expect(page).toHaveTitle("CAA を読み解く | 積み木テキスト");
-  await expect(page.locator("header .brand")).toHaveText("積み木テキスト");
+  await expect(page).toHaveTitle("CAA を読み解く | Quilna");
+  await expect(page.locator("header .brand")).toHaveText("Quilna");
   await panel(page).locator("summary").click();
   await expect(
     panel(page).getByRole("button", { name: "Googleでログイン", exact: true }),

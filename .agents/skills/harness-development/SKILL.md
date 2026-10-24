@@ -1,6 +1,6 @@
 ---
 name: harness-development
-description: "Run or maintain Tsumiki Text's Go development harness when a task requests a bounded implementation, verification, review, and repair loop. Use for harness execution or recovery, not ordinary edits that do not need an agent loop."
+description: "Run or maintain Quilna's Go development harness when a task requests a bounded implementation, verification, review, and repair loop. Use for harness execution or recovery, not ordinary edits that do not need an agent loop."
 ---
 
 # Harness Development

@@ -4,7 +4,7 @@
 
 ## ブラウザ版を先に完成させる
 
-2026-10-24のプロジェクトオーナーの判断を[Issue #41](https://github.com/tqer39/adaptive-textbook/issues/41)に記録しています。
+2026-10-24のプロジェクトオーナーの判断を[Issue #41](https://github.com/tqer39/quilna/issues/41)に記録しています。
 ブラウザ版に集中し、プロジェクトオーナーが明示的に「使いやすい」と判断するまで改善を続けます。
 その判断までは、macOS／iOSの機能開発、ネイティブ画面の実験、配布準備、端末性能の検証、ネイティブのモデル評価を保留します。
 既存のネイティブ実装・PR・日付付きの検証結果は保持し、未完了のIssueも開いたままにします。
@@ -26,8 +26,8 @@
 
 - [セキュリティ保守](security-maintenance.ja.md)を含む、安全性とデータ消失の問題を優先します。
 - ブラウザの使いやすさと具体的な感想はIssue #41で扱い、任意の機能追加より利用を妨げる問題の修正を優先します。
-- [Issue #7](https://github.com/tqer39/adaptive-textbook/issues/7)の出典から教材・理解問題までの流れも、ブラウザ版で先に進めます。
-- 出典を保つ共有は[Issue #30](https://github.com/tqer39/adaptive-textbook/issues/30)、論文の収集は[Issue #31](https://github.com/tqer39/adaptive-textbook/issues/31)として、学習体験に続く課題に保持します。
+- [Issue #7](https://github.com/tqer39/quilna/issues/7)の出典から教材・理解問題までの流れも、ブラウザ版で先に進めます。
+- 出典を保つ共有は[Issue #30](https://github.com/tqer39/quilna/issues/30)、論文の収集は[Issue #31](https://github.com/tqer39/quilna/issues/31)として、学習体験に続く課題に保持します。
 - ネイティブ専用の作業は、ブラウザ版をプロジェクトオーナーが受け入れるまで保留します。
 
 この順序の変更は、有料API呼び出し、新しい認証情報、公開、無関係なPRのマージを許可するものではありません。
