@@ -1390,3 +1390,20 @@ header {
 .rss-tag-editor form {
   margin-block: 1rem;
 }
+
+/* Keep the live region available, without empty reading chrome. */
+.save-status:empty {
+  padding: 0;
+  min-height: 0;
+}
+.reading-settings label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+.reading-settings input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+}
