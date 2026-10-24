@@ -97,3 +97,22 @@ test("IME composition does not replace the input before conversion completes", a
   await input.dispatchEvent("compositionend");
   await expect(page.locator(".rss-article-list li")).toHaveCount(1);
 });
+
+test("search input is readable and touch-sized within the article column", async ({
+  page,
+}) => {
+  await seed(page, 2);
+  const input = page.getByLabel("保存領域の記事を検索");
+  await input.scrollIntoViewIfNeeded();
+  const box = await input.boundingBox();
+  const main = await page.locator(".rss-main").boundingBox();
+  expect(box).not.toBeNull();
+  expect(main).not.toBeNull();
+  expect(box!.height).toBeGreaterThanOrEqual(44);
+  expect(box!.width).toBeGreaterThanOrEqual(Math.min(280, main!.width));
+  expect(box!.x).toBeGreaterThanOrEqual(main!.x);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(main!.x + main!.width + 1);
+  await input.fill("original");
+  await expect(page.locator(".rss-article-list li")).toHaveCount(2);
+  await page.screenshot({ path: test.info().outputPath("search-layout.png") });
+});
