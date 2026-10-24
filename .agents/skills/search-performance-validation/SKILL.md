@@ -6,7 +6,7 @@ description: "Verify Quilna's article database and Japanese full-text search cor
 # Search Performance Validation
 
 Work from this checkout's Git root and follow [the repository instructions](../../../AGENTS.md).
-For browser changes, read **Local article search** in [the browser reader guide](../../../docs/browser-rss.md) and [browser validation](../../../docs/browser-validation.md). Use `npm run test:search-performance` and [the browser benchmark](../../../tests/performance/search.spec.ts): the current browser target is 200 ms from input to painted correct results, with initial loading/preparation separate. Never substitute native database timings for this claim. The current corpus has no tags; tag-heavy workloads require separate evidence.
+For browser changes, read **Local article search** in [the browser reader guide](../../../docs/browser-rss.md) and [browser validation](../../../docs/browser-validation.md). Use `npm run test:search-performance` and [the browser benchmark](../../../tests/performance/search.spec.ts): the current browser target is 200 ms from input to painted correct results, with initial loading/preparation separate. Never substitute native database timings for this claim. Keep both the untagged baseline and the dense-tag variant defined in that benchmark; report their separate sample counts and measurements.
 
 Only when native work is authorized, read **The 100 ms database-read budget**, **The 100 ms full-text search gate**, and **Storage and search engine selection** in [the Apple guide](../../../apple/README.md).
 The selected guide and executable benchmark define the corpus, query cases, sample counts, contention, timing boundaries, and success criteria; do not create a second checklist with different values.

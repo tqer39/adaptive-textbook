@@ -478,3 +478,178 @@ test("five malformed snapshots do not starve the next batch, and a concurrently 
     page.getByRole("button", { name: "While PC was off", exact: true }),
   ).toBeVisible();
 });
+
+for (const failure of [
+  "503",
+  "network",
+  "timeout",
+  "401",
+  "unconfigured",
+] as const) {
+  test(`cloud polling recovers after ${failure} only when retry is safe`, async ({
+    page,
+  }) => {
+    const state = initial();
+    let mode: "healthy" | "failure" = "healthy";
+    let requests = 0;
+    let acknowledgements = 0;
+    await page.clock.install();
+    await page.route("**/api/session", (route) =>
+      route.fulfill({ json: { csrfToken: csrf } }),
+    );
+    await page.route("**/api/collection**", (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith("/ack")) {
+        acknowledgements++;
+        state.pending = [];
+      } else if (path.includes("/snapshots/")) {
+        return route.fulfill({ json: { ...state.pending[0], account, xml } });
+      } else {
+        requests++;
+        if (mode === "failure") {
+          if (failure === "timeout") return;
+          if (failure === "network") return route.abort("failed");
+          return route.fulfill({
+            status: failure === "unconfigured" ? 503 : Number(failure),
+            json: {
+              status:
+                failure === "unconfigured"
+                  ? "auth-unconfigured"
+                  : "temporary-fixture",
+            },
+          });
+        }
+      }
+      return route.fulfill({ json: state });
+    });
+    await seed(page);
+    state.interval = 15;
+    await page.reload();
+    await expect(page.locator("#rss-cloud-status")).toContainText(
+      "クラウドで15分ごと",
+    );
+    const healthyRequests = requests;
+    mode = "failure";
+    await page.clock.fastForward(60001);
+    await expect.poll(() => requests).toBe(healthyRequests + 1);
+    if (failure === "timeout") await page.clock.fastForward(16001);
+    await expect(page.locator("#rss-cloud-status")).toContainText(
+      failure === "unconfigured"
+        ? "有効になっていません"
+        : failure === "401"
+          ? "ログインが必要"
+          : failure === "timeout"
+            ? "時間内に届きません"
+            : "接続できません",
+    );
+    mode = "healthy";
+    state.pending = [
+      {
+        id: snapshotId,
+        feedUrl: address,
+        url: address,
+        fetchedAt: time,
+        parts: 1,
+        size: xml.length,
+      },
+    ];
+    await page.clock.fastForward(
+      ["401", "unconfigured"].includes(failure) ? 600001 : 30001,
+    );
+    if (["401", "unconfigured"].includes(failure)) {
+      expect(requests).toBe(healthyRequests + 1);
+      expect(acknowledgements).toBe(0);
+    } else {
+      await expect.poll(() => acknowledgements).toBe(1);
+      await expect(page.locator("#rss-cloud-status")).toContainText(
+        "未取り込みの取得結果：0件",
+      );
+      await expect(
+        page.getByRole("button", { name: "While PC was off", exact: true }),
+      ).toBeVisible();
+    }
+    await expect(
+      page.getByRole("button", { name: "Newer local article", exact: true }),
+    ).toBeVisible();
+  });
+}
+
+test("initial connection failures back off to five minutes and a lost ACK recovers without duplicate articles", async ({
+  page,
+}) => {
+  const state = initial();
+  state.interval = 15;
+  state.pending = [
+    {
+      id: snapshotId,
+      feedUrl: address,
+      url: address,
+      fetchedAt: time,
+      parts: 1,
+      size: xml.length,
+    },
+  ];
+  let online = false;
+  let requests = 0;
+  let acknowledgements = 0;
+  await page.clock.install({ time: new Date(time) });
+  await page.clock.pauseAt(new Date(time + 1000));
+  await page.route("**/api/session", (route) =>
+    route.fulfill({ json: { csrfToken: csrf } }),
+  );
+  await page.route("**/api/collection**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/ack")) {
+      acknowledgements++;
+      if (acknowledgements === 1)
+        return route.fulfill({ status: 503, json: { status: "lost-ack" } });
+      state.pending = [];
+    } else if (path.includes("/snapshots/")) {
+      return route.fulfill({ json: { ...state.pending[0], account, xml } });
+    } else {
+      requests++;
+      if (!online)
+        return route.fulfill({
+          status: 503,
+          json: { status: "temporary-fixture" },
+        });
+    }
+    return route.fulfill({ json: state });
+  });
+  await page.goto("/?view=feeds");
+  await expect(page.locator("#rss-cloud-status")).toContainText(
+    "自動的に再確認",
+  );
+  for (const delay of [30000, 60000, 120000, 240000, 300000, 300000]) {
+    const before = requests;
+    await page.clock.fastForward(delay - 1);
+    expect(requests).toBe(before);
+    await page.clock.fastForward(1);
+    await expect.poll(() => requests).toBe(before + 1);
+    await expect(page.locator("#rss-cloud-status")).toContainText(
+      "自動的に再確認",
+    );
+  }
+  online = true;
+  await page.clock.fastForward(300000);
+  await expect.poll(() => acknowledgements).toBe(1);
+  await expect(page.locator("#rss-cloud-status")).toContainText(
+    "自動的に再確認",
+  );
+  await expect(
+    page.getByRole("button", { name: "While PC was off", exact: true }),
+  ).toBeVisible();
+  await page.clock.fastForward(300000);
+  await expect.poll(() => acknowledgements).toBe(2);
+  await expect(page.locator("#rss-cloud-status")).toContainText(
+    "未取り込みの取得結果：0件",
+  );
+  await expect(
+    page.getByRole("button", { name: "すべての記事 · 2", exact: true }),
+  ).toBeVisible();
+  const before = requests;
+  await page.clock.fastForward(59999);
+  expect(requests).toBe(before);
+  await page.clock.fastForward(1);
+  await expect.poll(() => requests).toBe(before + 1);
+});

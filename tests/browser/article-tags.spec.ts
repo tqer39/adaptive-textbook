@@ -302,3 +302,45 @@ test("bulk classification can stop between records without dropping completed re
     }),
   ).toBeVisible();
 });
+
+test("background tag updates preserve an open filter while refreshing its results", async ({
+  page,
+}) => {
+  await seed(page);
+  const filter = page.getByLabel("タグで絞り込み");
+  await filter.focus();
+  const witness = await filter.evaluateHandle((control) => {
+    const state = { control, detached: false };
+    new MutationObserver((records) => {
+      for (const record of records)
+        for (const node of Array.from(record.removedNodes))
+          if (node === control || node.contains(control)) state.detached = true;
+    }).observe(document.body, { childList: true, subtree: true });
+    return state;
+  });
+  for (const [index, id] of ["legacy", "unknown"].entries()) {
+    await page.evaluate(async (id) => {
+      const path = "/src/feed-store.ts";
+      const { openFeedLibrary, setArticleTags } = await import(path);
+      const db = await openFeedLibrary();
+      await setArticleTags(db, id, ["更新中の分類"]);
+      db.close();
+      const channel = new BroadcastChannel("tsumiki.rss.v1");
+      channel.postMessage({ articleId: id });
+      channel.close();
+    }, id);
+    await expect(filter.locator('option[value="tag:更新中の分類"]')).toHaveText(
+      `更新中の分類 · ${index + 1}`,
+    );
+    expect(
+      await witness.evaluate(
+        ({ control, detached }) => control.isConnected && !detached,
+      ),
+    ).toBe(true);
+    if (!index) await filter.selectOption("tag:更新中の分類");
+    await expect(page.locator("#rss-search-status")).toContainText(
+      `${index + 1}件`,
+    );
+    await expect(filter).toBeFocused();
+  }
+});

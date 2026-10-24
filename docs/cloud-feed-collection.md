@@ -39,6 +39,7 @@ Reaching capacity stops scheduling without deleting old results. A successful br
 Stored responses are untrusted source data; full RSS parsing and text extraction happen in the browser.
 The next visible, online browser downloads at most five pending responses per pass, commits each to IndexedDB, then acknowledges their IDs.
 Pending work is checked after 15 seconds; otherwise status is checked after 60 seconds while the page is visible.
+Connection failures, timeouts and transient HTTP errors (408, 429, 5xx) retry status/import checks after 30, 60, 120, 240 and then 300 seconds, including a failed first connection or acknowledgement. A successful pass resets this backoff. Authentication/configuration, account-validation, malformed-state and local storage failures require explicit recovery instead of automatic retries. Configuration and discard requests are never replayed automatically.
 Storage failures, navigation or lost responses retain unacknowledged server copies for retry. Acknowledgements are idempotent.
 Malformed XML or damaged stored snapshots remain pending with their feed URL, acquisition time and reason in Settings.
 They do not block healthy snapshots: each pass attempts up to five results that have not already failed in this page, and successful local saves are acknowledged separately.

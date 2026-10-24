@@ -49,6 +49,9 @@ class CloudRequestError extends Error {
     super(message);
   }
 }
+export class CloudConnectionError extends Error {}
+const connectionFailure =
+  "クラウドに接続できません。取得済みの記事は保持しています。";
 const errors: Record<string, string> = {
   "collection-conflict":
     "別の画面で設定が変わりました。クラウドの状態を確認してから再試行してください。",
@@ -117,10 +120,16 @@ export class CloudCollectionClient {
         throw Error(
           "この環境ではクラウド収集を利用できません。現在は画面表示中の更新のみです。",
         );
-      if (response.status === 503)
-        throw Error(
-          "クラウドに接続できません。収集の稼働状態を確認できないため、再試行してください。",
-        );
+      if ([408, 429].includes(response.status) || response.status >= 500) {
+        // Configuration/auth failures require user action, even with a 503 status.
+        const value = await response.json().catch(() => null);
+        if (
+          value?.status === "auth-unconfigured" ||
+          value?.status === "collection-unconfigured"
+        )
+          throw Error(errors["collection-unconfigured"]);
+        throw new CloudConnectionError(connectionFailure);
+      }
       if (!response.headers.get("Content-Type")?.includes("application/json"))
         throw Error("クラウド収集サーバーに接続できません。");
       const value = await response.json();
@@ -133,6 +142,14 @@ export class CloudCollectionClient {
       if (options.account && value.account && value.account !== options.account)
         throw Error(errors["collection-account-changed"]);
       return value;
+    } catch (error) {
+      if (controller.signal.aborted)
+        throw new CloudConnectionError(
+          "クラウドの応答が時間内に届きませんでした。取得済みの記事は保持しています。",
+        );
+      if (error instanceof TypeError)
+        throw new CloudConnectionError(connectionFailure);
+      throw error;
     } finally {
       clearTimeout(timer);
     }

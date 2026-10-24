@@ -31,6 +31,7 @@ import {
 import { ArticleSpeech } from "./article-speech";
 import {
   CloudCollectionClient,
+  CloudConnectionError,
   type CloudCollectionState,
 } from "./cloud-collection";
 import { AuthClient } from "./auth-client";
@@ -88,6 +89,7 @@ export async function feedReader(root: HTMLElement) {
   let cloudBusy = false;
   let cloudChecked = false;
   let cloudError = "";
+  let cloudRetryCount = 0;
   let cloudTimer: ReturnType<typeof setTimeout> | null = null;
   let discoveredArticleURL = "";
   let translationController: AbortController | null = null;
@@ -273,6 +275,47 @@ export async function feedReader(root: HTMLElement) {
   const navigation = el("section", undefined, "rss-navigation");
   navigation.setAttribute("aria-label", "収集メニュー");
   const main = el("main", undefined, "rss-main");
+  // Keep list controls connected while background writes refresh the results.
+  const listHeading = el("h1");
+  listHeading.tabIndex = -1;
+  const listLede = el(
+    "p",
+    "気になる情報を集めて、読む。学びたい記事を保存しておきましょう。",
+    "rss-lede",
+  );
+  const listResults = el("div");
+  const searchLabel = el("label", "保存領域の記事を検索");
+  searchLabel.htmlFor = "rss-search";
+  const searchField = el("input");
+  searchField.id = "rss-search";
+  searchField.type = "search";
+  searchField.maxLength = 300;
+  searchField.placeholder = "題名・本文・保存した翻訳・タグ";
+  searchField.addEventListener("compositionstart", () => {
+    composing = true;
+  });
+  const updateQuery = () => {
+    searchQuery = searchField.value;
+    if (!composing) {
+      displayedQuery = searchQuery;
+      pageNumber = 0;
+      render();
+    }
+  };
+  searchField.addEventListener("compositionend", () => {
+    composing = false;
+    updateQuery();
+  });
+  searchField.addEventListener("input", updateQuery);
+  const tagFilterLabel = el("label", "タグで絞り込み");
+  tagFilterLabel.htmlFor = "rss-tag-filter";
+  const tagsSelect = el("select");
+  tagsSelect.id = tagFilterLabel.htmlFor;
+  tagsSelect.addEventListener("change", () => {
+    tagFilter = tagsSelect.value;
+    pageNumber = 0;
+    render();
+  });
   const discoveryPanel = el("section", undefined, "rss-discovery");
   discoveryPanel.setAttribute("aria-label", "見つかった配信元");
   const errors = el("div", undefined, "rss-error");
@@ -400,7 +443,8 @@ export async function feedReader(root: HTMLElement) {
     cloudLogin.hidden = !cloudError.includes("ログインが必要");
     cloudNotice.textContent = cloudBusy
       ? "クラウドの処理中です…"
-      : cloudError ||
+      : (cloudError &&
+          `${cloudError}${cloudRetryCount ? " 接続の回復を待って自動的に再確認します。" : ""}`) ||
         (!cloudState?.available
           ? "クラウド収集はまだ利用できません。現在は画面表示中の更新のみです。"
           : `${cloudState.interval ? `クラウドで${cloudState.interval}分ごとに収集を設定済み` : "クラウド収集は停止中"}。未取り込みの取得結果：${cloudState.pending.length}件。${failures.length ? `取り込めない取得結果：${failures.length}件。下の理由を確認してください。` : ""}${cloudState.blocked ? "保存上限に達したため収集を一時停止しています。取得済みの記事を取り込んでください。" : ""}${cloudState.feeds.some((feed) => feed.error) ? "取得に失敗した配信元があります。再試行を待っています。" : ""} ${cloudState.sourcePolicy === "public-https" ? "公開HTTPSのサイト・RSSに対応します。ログインが必要なページや配信元側の制限により取得できない場合があります。" : `対応する配信元：${cloudState.hosts.join("、")}。`}追加した購読先は「設定を更新」でクラウドに反映できます。`);
@@ -417,14 +461,17 @@ export async function feedReader(root: HTMLElement) {
     if (
       !document.hidden &&
       navigator.onLine &&
-      cloudState?.available &&
-      !cloudError
+      ((cloudState?.available && !cloudError) || cloudRetryCount > 0)
     )
       cloudTimer = setTimeout(
         () => void checkCloud(),
-        cloudState.pending.length > cloudClient.failures(cloudState).length
-          ? 15000
-          : 60000,
+        cloudRetryCount
+          ? Math.min(300000, 30000 * 2 ** (cloudRetryCount - 1))
+          : cloudState &&
+              cloudState.pending.length >
+                cloudClient.failures(cloudState).length
+            ? 15000
+            : 60000,
       );
   }
   async function checkCloud() {
@@ -445,8 +492,13 @@ export async function feedReader(root: HTMLElement) {
         acceptCloudState(await cloudClient.status());
       }
       cloudError = "";
+      cloudRetryCount = 0;
     } catch (error) {
       cloudError = cloudFailure(error);
+      cloudRetryCount =
+        error instanceof CloudConnectionError
+          ? Math.min(5, cloudRetryCount + 1)
+          : 0;
     } finally {
       cloudBusy = false;
       cloudChecked = true;
@@ -483,8 +535,13 @@ export async function feedReader(root: HTMLElement) {
     try {
       acceptCloudState(await cloudClient.discard(cloudState, id));
       cloudError = "";
+      cloudRetryCount = 0;
     } catch (error) {
       cloudError = cloudFailure(error);
+      cloudRetryCount =
+        error instanceof CloudConnectionError
+          ? Math.min(5, cloudRetryCount + 1)
+          : 0;
     } finally {
       cloudBusy = false;
       renderCloud();
@@ -514,8 +571,13 @@ export async function feedReader(root: HTMLElement) {
       cloudIntervalDirty = false;
       acceptCloudState(next);
       cloudError = "";
+      cloudRetryCount = 0;
     } catch (error) {
       cloudError = cloudFailure(error);
+      cloudRetryCount =
+        error instanceof CloudConnectionError
+          ? Math.min(5, cloudRetryCount + 1)
+          : 0;
     } finally {
       cloudBusy = false;
       renderCloud();
@@ -1273,7 +1335,9 @@ export async function feedReader(root: HTMLElement) {
         : null;
     renderError();
     navigation.replaceChildren();
-    main.replaceChildren();
+    const article = articles.find((a) => a.id === selected);
+    if (article || listResults.parentNode !== main) main.replaceChildren();
+    listResults.replaceChildren();
     navigation.append(
       el("p", "COLLECT → READ → LEARN", "eyebrow"),
       el("h2", "情報収集"),
@@ -1389,7 +1453,9 @@ export async function feedReader(root: HTMLElement) {
       "p",
       (cloudState?.available && cloudState.interval
         ? cloudError
-          ? "クラウドの状態を確認できません。設定から再確認してください。"
+          ? cloudRetryCount
+            ? "クラウドへの接続を再試行しています。取得済みの記事は読めます。"
+            : "クラウドの状態を確認できません。設定から再確認してください。"
           : cloudState.blocked
             ? "クラウド収集：保存上限で一時停止。設定から記事を取り込んでください。"
             : `クラウド収集：${cloudState.interval}分ごとに設定済み（PC停止中も実行）`
@@ -1477,9 +1543,8 @@ export async function feedReader(root: HTMLElement) {
       line.append(update);
       navigation.append(line);
     }
-    const article = articles.find((a) => a.id === selected);
     renderDiscovery();
-    main.append(discoveryPanel);
+    if (discoveryPanel.parentNode !== main) main.append(discoveryPanel);
     if (article) {
       main.classList.add("rss-reading");
       main.append(
@@ -1801,53 +1866,24 @@ export async function feedReader(root: HTMLElement) {
       main.append(articleNode);
     } else {
       main.classList.remove("rss-reading");
-      const heading = el(
-        "h1",
+      listHeading.textContent =
         filter === "saved"
           ? "保存した記事"
           : filter === "unread"
             ? "未読の記事"
-            : "すべての記事",
-      );
-      heading.tabIndex = -1;
-      main.append(
-        heading,
-        el(
-          "p",
-          "気になる情報を集めて、読む。学びたい記事を保存しておきましょう。",
-          "rss-lede",
-        ),
-      );
-      const searchLabel = el("label", "保存領域の記事を検索");
-      searchLabel.htmlFor = "rss-search";
-      const searchField = el("input");
-      searchField.id = "rss-search";
-      searchField.type = "search";
-      searchField.maxLength = 300;
-      searchField.placeholder = "題名・本文・保存した翻訳・タグ";
-      searchField.value = searchQuery;
-      searchField.addEventListener("compositionstart", () => {
-        composing = true;
-      });
-      const updateQuery = () => {
-        searchQuery = searchField.value;
-        if (!composing) {
-          displayedQuery = searchQuery;
-          pageNumber = 0;
-          render();
-        }
-      };
-      searchField.addEventListener("compositionend", () => {
-        composing = false;
-        updateQuery();
-      });
-      searchField.addEventListener("input", updateQuery);
-      main.append(searchLabel, searchField);
-      const tagFilterLabel = el("label", "タグで絞り込み");
-      tagFilterLabel.htmlFor = "rss-tag-filter";
-      const tagsSelect = el("select");
-      tagsSelect.id = tagFilterLabel.htmlFor;
-      for (const [value, label] of [
+            : "すべての記事";
+      if (listResults.parentNode !== main)
+        main.append(
+          listHeading,
+          listLede,
+          searchLabel,
+          searchField,
+          tagFilterLabel,
+          tagsSelect,
+          listResults,
+        );
+      if (searchField.value !== searchQuery) searchField.value = searchQuery;
+      const desiredOptions = [
         ["", "すべてのタグ"],
         ["state:未処理", "未処理"],
         ["state:分類できず", "分類できず"],
@@ -1856,28 +1892,22 @@ export async function feedReader(root: HTMLElement) {
         ...Array.from(tagCounts)
           .sort(([a], [b]) => a.localeCompare(b, "ja"))
           .map(([tag, count]) => [`tag:${tag}`, `${tag} · ${count}`]),
-      ]) {
-        const option = el("option", label);
+      ];
+      if (tagFilter && !desiredOptions.some(([value]) => value === tagFilter))
+        desiredOptions.push([tagFilter, `${tagFilter.slice(4)} · 0`]);
+      const existingOptions = new Map(
+        Array.from(tagsSelect.options, (option) => [option.value, option]),
+      );
+      for (const [index, [value, label]] of desiredOptions.entries()) {
+        const option = existingOptions.get(value) ?? el("option");
         option.value = value;
-        tagsSelect.append(option);
+        if (option.textContent !== label) option.textContent = label;
+        if (tagsSelect.options[index] !== option)
+          tagsSelect.insertBefore(option, tagsSelect.options[index] ?? null);
+        existingOptions.delete(value);
       }
-      if (
-        tagFilter &&
-        !Array.from(tagsSelect.options).some(
-          (option) => option.value === tagFilter,
-        )
-      ) {
-        const empty = el("option", `${tagFilter.slice(4)} · 0`);
-        empty.value = tagFilter;
-        tagsSelect.append(empty);
-      }
-      tagsSelect.value = tagFilter;
-      tagsSelect.addEventListener("change", () => {
-        tagFilter = tagsSelect.value;
-        pageNumber = 0;
-        render();
-      });
-      main.append(tagFilterLabel, tagsSelect);
+      for (const option of existingOptions.values()) option.remove();
+      if (tagsSelect.value !== tagFilter) tagsSelect.value = tagFilter;
       const pendingCount = articles.filter((article) => !article.tags).length;
       if (pendingCount || tagBatchController) {
         const classify = button(
@@ -1887,9 +1917,9 @@ export async function feedReader(root: HTMLElement) {
           () => void classifyPending(),
         );
         classify.disabled = !!tagBatchController || !searchIndex.ready;
-        main.append(classify);
+        listResults.append(classify);
         if (tagBatchController)
-          main.append(
+          listResults.append(
             button("タグ判定を中止", () => tagBatchController?.abort()),
           );
       }
@@ -1897,7 +1927,7 @@ export async function feedReader(root: HTMLElement) {
         const progress = el("p", tagProgress);
         progress.id = "rss-tag-progress";
         progress.setAttribute("role", "status");
-        main.append(progress);
+        listResults.append(progress);
       }
       const query = displayedQuery.trim();
       const key = JSON.stringify([query, source, filter, tagFilter]);
@@ -1932,9 +1962,9 @@ export async function feedReader(root: HTMLElement) {
       );
       status.id = "rss-search-status";
       status.setAttribute("role", "status");
-      main.append(status);
+      listResults.append(status);
       if (searchProblem)
-        main.append(
+        listResults.append(
           button(
             "検索準備を再試行",
             () =>
@@ -1944,7 +1974,7 @@ export async function feedReader(root: HTMLElement) {
           ),
         );
       if (query)
-        main.append(
+        listResults.append(
           button("検索を解除", () => {
             searchQuery = displayedQuery = "";
             render();
@@ -1989,7 +2019,7 @@ export async function feedReader(root: HTMLElement) {
         );
         list.append(row);
       }
-      main.append(list);
+      listResults.append(list);
       if (visible.length > pageSize) {
         const previous = button("前の50件", () => {
           pageNumber--;
@@ -2001,10 +2031,10 @@ export async function feedReader(root: HTMLElement) {
           render();
         });
         next.disabled = (pageNumber + 1) * pageSize >= visible.length;
-        main.append(previous, next);
+        listResults.append(previous, next);
       }
       if (!visible.length)
-        main.append(
+        listResults.append(
           el(
             "div",
             query
