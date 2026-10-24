@@ -1381,10 +1381,12 @@ test("stale source holds proposals and cancellation never publishes", async ({
 
 test("term questions, local drafts and proposal controls reflow and do not send generation requests", async ({
   page,
+  baseURL,
 }, testInfo) => {
   const requests: string[] = [];
   page.on("request", (r) => {
-    if (!r.url().startsWith("http://127.0.0.1:5173")) requests.push(r.url());
+    if (new URL(r.url()).origin !== new URL(baseURL!).origin)
+      requests.push(r.url());
   });
   for (const width of [320, 390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
