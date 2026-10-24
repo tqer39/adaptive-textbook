@@ -73,6 +73,8 @@ Mozilla Readabilityが不活性なHTMLから本文を抽出します。取り込
 
 「表示中の本文を読み上げ」で、表示中の原文または訳文を、その言語に合う端末内音声で読み上げます。
 一時停止・再開・停止・速度変更ができます。記事を離れる、言語や表示を切り替えると読み上げを止めます。
+一時停止中の停止・記事移動・速度変更後に再び開始すると、以前のキューを取り消した後で音声エンジンの一時停止を解除します。取り消した本文を再生せず、新しい読み上げを開始できます。
+一時停止の直前に文章の区切りが終わり、その通知が遅れて届いても、一時停止中の操作表示を維持します。一度の再開操作で次の区切りを読み上げます。
 API非対応・端末内音声なし・読み上げ失敗を明示し、ネットワーク音声は使用しません。
 OS側で音声の追加が必要な場合があります。翻訳・音声の操作経路はブラウザのテスト用代替APIで検証し、それだけで翻訳品質や各端末の実音声出力を確認済みとはしません。
 [Language Detector API](https://developer.chrome.com/docs/ai/language-detection)・[Translator API](https://developer.chrome.com/docs/ai/translator-api)と[SpeechSynthesis](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis)を参照してください。

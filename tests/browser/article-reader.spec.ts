@@ -302,6 +302,115 @@ test("speech uses displayed text, supports pause/resume/rate and stops when leav
     ),
   ).toBe("cancel");
 });
+for (const transition of ["stop", "leave", "speed", "chunk"] as const) {
+  test(`paused speech starts again after ${transition} without replaying cancelled text`, async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as {
+        spoken: string[];
+        finishChunk: () => void;
+      };
+      w.spoken = [];
+      let paused = false;
+      let queued: SpeechSynthesisUtterance | undefined;
+      let active: SpeechSynthesisUtterance | undefined;
+      const play = () => {
+        if (!paused && queued) {
+          w.spoken.push(queued.text);
+          active = queued;
+          queued = undefined;
+        }
+      };
+      Object.defineProperty(window, "SpeechSynthesisUtterance", {
+        value: class {
+          constructor(public text: string) {}
+        },
+      });
+      Object.defineProperty(window, "speechSynthesis", {
+        value: {
+          get paused() {
+            return paused;
+          },
+          getVoices: () => [{ localService: true, lang: "en-US" }],
+          speak: (u: SpeechSynthesisUtterance) => {
+            queued = u;
+            w.finishChunk = () => {
+              if (active === u) active = undefined;
+              u.onend?.({} as SpeechSynthesisEvent);
+            };
+            play();
+          },
+          // Per Web Speech API, cancel clears the queue, not the paused flag.
+          cancel: () => {
+            queued = undefined;
+            active = undefined;
+          },
+          pause: () => {
+            paused = true;
+          },
+          resume: () => {
+            // A resume before cancel would audibly continue the old utterance.
+            if (paused && active) w.spoken.push(active.text);
+            paused = false;
+            play();
+          },
+        },
+      });
+    });
+    await source(page);
+    await add(page);
+    await expect(page.locator(".rss-article-body")).toContainText(
+      "Final paragraph.",
+    );
+    const start = () =>
+      page
+        .getByRole("button", { name: "表示中の本文を読み上げ", exact: true })
+        .click();
+    const spoken = () =>
+      page.evaluate(() => (window as unknown as { spoken: string[] }).spoken);
+    await start();
+    await page
+      .getByRole("button", { name: "読み上げを一時停止", exact: true })
+      .click();
+    if (transition === "stop") {
+      await page
+        .getByRole("button", { name: "読み上げを停止", exact: true })
+        .click();
+    } else if (transition === "leave") {
+      await page
+        .getByRole("button", { name: "← 記事一覧へ", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Collected article", exact: true })
+        .click();
+    } else if (transition === "speed") {
+      await page.getByLabel("読み上げ速度").selectOption("1.5");
+    } else {
+      // Deliver the just-finished chunk's event after the user pauses.
+      await page.evaluate(() =>
+        (window as unknown as { finishChunk: () => void }).finishChunk(),
+      );
+      await expect(
+        page.getByRole("button", { name: "読み上げを再開", exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText("一時停止中", { exact: true })).toBeVisible();
+    }
+    expect(await spoken()).toHaveLength(1);
+    if (transition === "chunk") {
+      await page
+        .getByRole("button", { name: "読み上げを再開", exact: true })
+        .click();
+    } else {
+      await start();
+    }
+    await expect.poll(spoken).toHaveLength(2);
+    expect(await page.evaluate(() => speechSynthesis.paused)).toBe(false);
+    await page
+      .getByRole("button", { name: "読み上げを停止", exact: true })
+      .click();
+  });
+}
 test("failed content persistence is visible and retry saves the full text", async ({
   page,
 }) => {
