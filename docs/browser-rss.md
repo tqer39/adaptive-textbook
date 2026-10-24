@@ -22,12 +22,12 @@ Previously collected articles remain readable and saveable during discovery or f
 RSS acquisition, page discovery and article import run inside the local Vite process through `/api/feeds/fetch`; discovery-mode requests allow HTML responses.
 Article extraction uses `@mozilla/readability`, a shared browser dependency. No cloud deployment, login or paid model connection is added.
 `npm run build` creates static assets but does not create or deploy the RSS acquisition service.
-`vite preview` and the existing Workers deployment do not provide this new endpoint yet.
+`vite preview` does not provide this endpoint. The optional [cloud collector](cloud-feed-collection.md) provides authenticated Workers acquisition for three explicitly supported publisher hosts; it is disabled by default.
 
 ## Automatic feed collection
 
 Subscribed feeds refresh every 15 minutes by default. **設定 → RSSの自動更新** offers 15, 30, 60 minutes or off; the choice is stored for this browser origin and updates other open tabs.
-This collector runs only while the Quilna page is visible and the browser reports online. Hiding the page, going offline or turning collection off prevents new automatic requests; requests already started may finish within their existing 16-second timeout. Visibility/online restoration checks overdue feeds. It does not run after the page/browser closes, and the UI does not claim otherwise. Collection with the app closed needs a separately chosen runtime.
+This collector runs only while the Quilna page is visible and the browser reports online. Hiding the page, going offline or turning collection off prevents new automatic requests; requests already started may finish within their existing 16-second timeout. Visibility/online restoration checks overdue feeds. It does not run after the page/browser closes, and the UI does not claim otherwise. Collection while the PC sleeps or is off uses the separately enabled [cloud collector](cloud-feed-collection.md). The browser waits for cloud status before starting foreground collection, avoiding a duplicate initial request.
 A 15-second scheduler check handles due feeds without overlapping its own cycles. Each origin has two Web Lock slots and an exclusive lock per feed, shared by manual and automatic refresh. Automatic requests reread the persisted feed after acquiring the lock, so another tab's completed update prevents a duplicate request. Busy slots are retried by a later automatic check; a manual request reports that other updates are running.
 Browsers without Web Locks explicitly disable automatic collection; manual refresh still has a two-request limit within each tab. No cross-tab guarantee is made for that fallback.
 
@@ -102,7 +102,7 @@ Unread, saved, source and tag filters intersect the search results. Results are 
 IME composition retains the input until conversion completes. Clearing the query restores browsing.
 An in-memory search representation is prepared in yielding batches; a newer library load supersedes older preparation.
 While preparation is pending, existing articles can still be browsed with the query cleared; entered searches wait for the complete representation rather than showing partial matches.
-The representation is rebuilt after reload. A single-article write or cross-tab notification reads and reindexes only that article; bulk feed updates rebuild the representation. IndexedDB originals remain authoritative.
+The representation is rebuilt after reload. Up to 16 recent queries with at most 5,000 matches each are cached; single-article writes update their membership, and full preparation/invalidation clears them. Returned result sets are independent snapshots. A single-article write or cross-tab notification reads and reindexes only that article; bulk feed updates rebuild the representation. IndexedDB originals remain authoritative.
 
 Run `npm run test:search-performance` for the isolated browser gate (`127.0.0.1:5199`, disposable browser profile). It uses 100,000 originals of approximately 2 KB and corresponding Japanese translations of approximately 2 KB, 30 first/repeated samples per fixed query, correctness oracles, all-page traversal, and idle/held-write/continuous-commit groups.
 Measure input dispatch through painted correct results separately from initial DB loading and search preparation; retain every sample and failures, and verify successful writer commits inside contention groups.
@@ -111,6 +111,7 @@ The gate also verified that changed originals and translations became searchable
 Initial database loading and search preparation took 2,324 ms separately; fixture creation took 1,121 ms. These are local synthetic measurements, not physical-phone or universal latency guarantees. Pagination traversal is checked for correctness, not included in the 270 timing samples.
 After adding tags, the unchanged 100,000-article gate passed again on the same browser: idle maximum 34.1 ms, held-write maximum 48.4 ms, continuous-write maximum 64.5 ms, 270 samples and 128 writer commits. Preparation took 2,333 ms and fixture creation 1,126 ms. This fixture does not assign tags; tag correction/filter correctness is covered separately, not a measured tag-filter workload.
 Raw JSON is written under `.local-state/search-performance/results/`; source hashes are retained with the local validation evidence. No personal database is used.
+On 2026-10-24, the Linux CI run for `6e3427b6a74ea7ccdc4b27fa17084a9a2914f447` failed this gate with one continuous-write sample at 243.1 ms; its [failure evidence](https://github.com/tqer39/quilna/actions/runs/40058899306) is retained. After adding the bounded query cache, the unchanged local macOS/Chromium gate passed all 270 samples with a maximum of 44.8 ms and 2,332 ms of separate loading/preparation. This local repair result does not establish a passing Linux CI result.
 Browser/OS, source identity, corpus sizes and timings must accompany subsequent results. Native 100 ms measurements do not establish this browser gate.
 
 ## Where a backend is needed
@@ -127,7 +128,7 @@ Feeds that permit it can be fetched directly, and importing a feed file can work
 See [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS).
 The proposed common boundary is an RSS acquisition API and an optional synchronization API, leaving the interface replaceable.
 
-The current acquisition endpoint accepts only same-origin requests on loopback `127.0.0.1`; it is intentionally unavailable from a phone over the LAN.
+The local Node acquisition endpoint accepts only same-origin requests on loopback `127.0.0.1`; it is intentionally unavailable from a phone over the LAN.
 Mobile viewport tests verify layout, not access from a physical phone or a deployed shared service.
 A public deployment needs authentication, per-user limits, deployment-specific network controls and persistent storage design before exposure.
 No Cloudflare/AWS service or LAN/public binding was enabled in this work.

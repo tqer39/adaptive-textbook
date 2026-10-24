@@ -29,6 +29,11 @@ import {
   isLinkOnly,
 } from "./article-content";
 import { ArticleSpeech } from "./article-speech";
+import {
+  CloudCollectionClient,
+  type CloudCollectionState,
+} from "./cloud-collection";
+import { AuthClient } from "./auth-client";
 import { button, el } from "./ui";
 import { parseFeed, type Feed, type FeedArticle } from "./feed-parser";
 import { discoverFeeds, sourceURL, type FeedCandidate } from "./feed-discovery";
@@ -78,6 +83,12 @@ export async function feedReader(root: HTMLElement) {
   let addingArticle = false;
   let refreshInterval = readRefreshInterval();
   let collectionProblem = "";
+  const cloudClient = new CloudCollectionClient();
+  let cloudState: CloudCollectionState | null = null;
+  let cloudBusy = false;
+  let cloudChecked = false;
+  let cloudError = "";
+  let cloudTimer: ReturnType<typeof setTimeout> | null = null;
   let discoveredArticleURL = "";
   let translationController: AbortController | null = null;
   let detectionController: AbortController | null = null;
@@ -127,11 +138,11 @@ export async function feedReader(root: HTMLElement) {
     settingsTitle,
     el(
       "p",
-      "記事・購読・保存済みの印は、このブラウザ内に保存します。別の端末やブラウザとは同期しません。ブラウザのデータを消去すると失われます。",
+      "記事・既読・保存済みの印は、このブラウザ内に保存します。これらの状態は別の端末やブラウザとは同期しません。ブラウザのデータを消去すると失われます。",
     ),
     el(
       "p",
-      "RSSの更新には、この端末で動く取得サーバーとインターネット接続を使います。取得済みの記事は、配信元が応答しなくても読めます。",
+      "RSSの更新には取得サーバーとインターネット接続を使います。取得済みの記事は、配信元が応答しなくても読めます。PC停止中の収集は、下のクラウド設定から開始します。",
     ),
     el(
       "p",
@@ -227,7 +238,7 @@ export async function feedReader(root: HTMLElement) {
   refreshSelect.disabled = !feedLockSupported();
   const refreshNotice = el(
     "p",
-    "Quilnaの画面を表示している間だけ更新します。非表示・オフライン中は待機し、閉じている間は収集しません。進行中の取得は完了まで待ちます。",
+    "この設定は画面表示中の更新に適用します。非表示・オフライン中は待機します。クラウド収集を開始すると、下のクラウド設定を優先します。",
     "muted",
   );
   refreshNotice.setAttribute("role", "status");
@@ -240,7 +251,7 @@ export async function feedReader(root: HTMLElement) {
         JSON.stringify(refreshInterval),
       );
       refreshNotice.textContent =
-        "自動更新の設定を保存しました。閉じている間は収集しません。";
+        "画面表示中の更新設定を保存しました。クラウド収集の設定は別です。";
     } catch {
       refreshNotice.textContent =
         "設定を保存できませんでした。今回は適用しますが、次回は設定し直してください。";
@@ -276,6 +287,8 @@ export async function feedReader(root: HTMLElement) {
       !connecting &&
       !collectionProblem &&
       refreshInterval > 0 &&
+      cloudChecked &&
+      !(cloudState?.available && cloudState.interval > 0) &&
       feedLockSupported() &&
       navigator.onLine &&
       !document.hidden
@@ -292,14 +305,169 @@ export async function feedReader(root: HTMLElement) {
       render();
     },
   });
+  const cloudSection = el("section", undefined, "rss-translation-settings");
+  const cloudNotice = el("p", "クラウド収集の接続を確認しています。", "muted");
+  cloudNotice.setAttribute("role", "status");
+  cloudNotice.id = "rss-cloud-status";
+  const cloudInterval = el("select");
+  cloudInterval.id = "rss-cloud-interval";
+  const cloudLabel = el("label", "クラウドの収集間隔");
+  cloudLabel.htmlFor = cloudInterval.id;
+  for (const minutes of [15, 30, 60]) {
+    const option = el("option", `${minutes}分ごと`);
+    option.value = String(minutes);
+    cloudInterval.append(option);
+  }
+  const cloudStart = button(
+    "クラウド収集を開始・設定を更新",
+    () => void configureCloud(false),
+  );
+  const cloudStop = button(
+    "クラウド収集を停止",
+    () => void configureCloud(true),
+  );
+  const cloudCheck = button(
+    "クラウドの状態確認・記事を取り込む",
+    () => void checkCloud(),
+  );
+  const cloudLogin = button("クラウド収集にログイン", async () => {
+    const auth = new AuthClient();
+    const status = await auth.status();
+    const url = status.available ? await auth.start() : null;
+    if (url) location.assign(url);
+    else {
+      cloudError =
+        "ログインに接続できませんでした。クラウドの接続準備を確認してください。";
+      renderCloud();
+    }
+  });
+  cloudLogin.hidden = true;
+  cloudSection.append(
+    el("h3", "PCを閉じている間の収集"),
+    el(
+      "p",
+      "クラウドに購読先と取得したRSS本文を保存し、PCのスリープ・電源オフ中も収集します。ここで開始した収集は、ログアウトしても「停止」を選ぶまで続きます。既読・保存済みの印や取り込んだ記事の原文は、このブラウザに保持します。",
+    ),
+    cloudLabel,
+    cloudInterval,
+    cloudStart,
+    cloudStop,
+    cloudCheck,
+    cloudLogin,
+    cloudNotice,
+  );
+  settings.insertBefore(cloudSection, translationSettings);
+  function renderCloud() {
+    cloudStart.disabled =
+      cloudBusy || !cloudState?.available || !db || !feeds.length;
+    cloudStop.disabled =
+      cloudBusy || !cloudState?.available || !cloudState.interval;
+    cloudCheck.disabled = cloudBusy || !db;
+    cloudInterval.disabled = cloudBusy;
+    cloudLogin.hidden = !cloudError.includes("ログインが必要");
+    cloudNotice.textContent = cloudBusy
+      ? "クラウドの処理中です…"
+      : cloudError ||
+        (!cloudState?.available
+          ? "クラウド収集はまだ利用できません。現在は画面表示中の更新のみです。"
+          : `${cloudState.interval ? `クラウドで${cloudState.interval}分ごとに収集を設定済み` : "クラウド収集は停止中"}。未取り込みの取得結果：${cloudState.pending.length}件。${cloudState.blocked ? "保存上限に達したため収集を一時停止しています。取得済みの記事を取り込んでください。" : ""}${cloudState.feeds.some((feed) => feed.error) ? "取得に失敗した配信元があります。再試行を待っています。" : ""} 対応する配信元：${cloudState.hosts.join("、")}。追加した購読先は「設定を更新」でクラウドに反映できます。`);
+  }
+  function scheduleCloud() {
+    if (cloudTimer) clearTimeout(cloudTimer);
+    cloudTimer = null;
+    if (
+      !document.hidden &&
+      navigator.onLine &&
+      cloudState?.available &&
+      !cloudError
+    )
+      cloudTimer = setTimeout(
+        () => void checkCloud(),
+        cloudState.pending.length ? 15000 : 60000,
+      );
+  }
+  async function checkCloud() {
+    if (!db || cloudBusy || document.hidden || !navigator.onLine) return;
+    cloudBusy = true;
+    renderCloud();
+    try {
+      cloudState = await cloudClient.status();
+      if (cloudState.available && cloudState.pending.length) {
+        try {
+          await cloudClient.importPending(db, cloudState);
+        } finally {
+          // Earlier documents may already be committed when a later save/ACK fails.
+          await load();
+          announceChange();
+        }
+        cloudState = await cloudClient.status();
+      }
+      cloudError = "";
+    } catch (error) {
+      cloudError = cloudFailure(error);
+    } finally {
+      cloudBusy = false;
+      cloudChecked = true;
+      renderCloud();
+      render();
+      scheduleCloud();
+      collector.wake();
+    }
+  }
+  function cloudFailure(error: unknown) {
+    if (error instanceof Error && error.name === "AbortError")
+      return "クラウドの応答が時間内に届きませんでした。取得済みの記事は保持しています。";
+    if (
+      error instanceof Error &&
+      !["ZodError", "SyntaxError", "TypeError"].includes(error.name)
+    )
+      return error.message;
+    return "クラウドの応答を確認できませんでした。取得済みの記事は保持しています。";
+  }
+  async function configureCloud(stop: boolean) {
+    if (!cloudState || cloudBusy) return;
+    cloudBusy = true;
+    renderCloud();
+    try {
+      const urls = stop
+        ? cloudState.feeds.map((feed) => feed.url)
+        : [
+            ...new Set([
+              ...cloudState.feeds.map((feed) => feed.url),
+              ...feeds.map((feed) => feed.url),
+            ]),
+          ];
+      cloudState = await cloudClient.configure(
+        cloudState,
+        urls,
+        stop ? 0 : (Number(cloudInterval.value) as 15 | 30 | 60),
+      );
+      cloudError = "";
+    } catch (error) {
+      cloudError = cloudFailure(error);
+    } finally {
+      cloudBusy = false;
+      renderCloud();
+      render();
+      scheduleCloud();
+      collector.wake();
+    }
+  }
   const collectionWake = () => {
     render();
     collector.wake();
+    if (document.hidden || !navigator.onLine) {
+      if (cloudTimer) clearTimeout(cloudTimer);
+      cloudTimer = null;
+    } else if (!cloudChecked || cloudState?.available) void checkCloud();
   };
   document.addEventListener("visibilitychange", collectionWake);
   window.addEventListener("online", collectionWake);
   window.addEventListener("offline", collectionWake);
   window.addEventListener("pagehide", () => collector.stop());
+  window.addEventListener("pagehide", () => {
+    if (cloudTimer) clearTimeout(cloudTimer);
+  });
   window.addEventListener("pageshow", () => collector.start());
   window.addEventListener("storage", (event) => {
     if (event.key !== feedRefreshPreferencesKey && event.key !== null) return;
@@ -1013,6 +1181,7 @@ export async function feedReader(root: HTMLElement) {
       : "公開日時なし";
   function render() {
     if (composing) return;
+    renderCloud();
     if (readerIdentity !== selected) {
       cancelReading();
       readerIdentity = selected;
@@ -1147,7 +1316,13 @@ export async function feedReader(root: HTMLElement) {
     navigation.append(refreshButton);
     const collectionStatus = el(
       "p",
-      collectionProblem ||
+      (cloudState?.available && cloudState.interval
+        ? cloudError
+          ? "クラウドの状態を確認できません。設定から再確認してください。"
+          : cloudState.blocked
+            ? "クラウド収集：保存上限で一時停止。設定から記事を取り込んでください。"
+            : `クラウド収集：${cloudState.interval}分ごとに設定済み（PC停止中も実行）`
+        : collectionProblem) ||
         (!feedLockSupported()
           ? "このブラウザでは自動更新を利用できません。手動で更新してください。"
           : !refreshInterval
@@ -1177,7 +1352,29 @@ export async function feedReader(root: HTMLElement) {
         el("strong", feed.title),
         el("span", `最終取得 ${date(feed.fetchedAt)}`, "muted"),
       );
-      if (refreshInterval && feedLockSupported())
+      const remoteFeed =
+        cloudState?.available && cloudState.interval
+          ? cloudState.feeds.find((item) => item.url === feed.url)
+          : undefined;
+      if (cloudState?.available && cloudState.interval) {
+        line.append(
+          el(
+            "span",
+            remoteFeed
+              ? `クラウドの次回更新の目安 ${date(new Date(remoteFeed.nextAt).toISOString())}`
+              : "この配信元はクラウド未登録です。設定を更新してください。",
+            "muted",
+          ),
+        );
+        if (remoteFeed?.error)
+          line.append(
+            el(
+              "p",
+              "クラウドで取得できませんでした。既存の記事を保持して再試行を待っています。",
+              "rss-feed-error",
+            ),
+          );
+      } else if (refreshInterval && feedLockSupported())
         line.append(
           el(
             "span",
@@ -1774,5 +1971,7 @@ export async function feedReader(root: HTMLElement) {
       );
   });
   await connect();
+  renderCloud();
+  await checkCloud();
   collector.start();
 }

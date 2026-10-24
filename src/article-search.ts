@@ -2,7 +2,12 @@ import { effectiveTags } from "./article-tags";
 import type { FeedArticle } from "./feed-parser";
 export const normalizeSearch = (text: string) =>
   text.normalize("NFKC").toLowerCase();
+function matches(text: string, terms: string[]) {
+  for (const term of terms) if (!text.includes(term)) return false;
+  return true;
+}
 export class ArticleSearch {
+  private queries = new Map<string, { terms: string[]; ids: Set<string> }>();
   private documents = new Map<
     string,
     { original: string[]; normalized: string }
@@ -14,6 +19,7 @@ export class ArticleSearch {
     yieldWork = () => new Promise<void>((r) => setTimeout(r, 0)),
   ) {
     const generation = ++this.generation;
+    this.queries.clear();
     this.ready = false;
     const next = new Map<string, { original: string[]; normalized: string }>();
     for (let i = 0; i < articles.length; i++) {
@@ -47,6 +53,7 @@ export class ArticleSearch {
   }
   invalidate() {
     this.generation++;
+    this.queries.clear();
     this.ready = false;
   }
   update(a: FeedArticle) {
@@ -61,18 +68,37 @@ export class ArticleSearch {
         ? a.translation.text
         : "",
     ];
+    const normalized = normalizeSearch(original.join("\n"));
     this.documents.set(a.id, {
       original,
-      normalized: normalizeSearch(original.join("\n")),
+      normalized,
     });
+    for (const [query, cached] of this.queries) {
+      if (matches(normalized, cached.terms)) cached.ids.add(a.id);
+      else cached.ids.delete(a.id);
+      if (cached.ids.size > 5000) this.queries.delete(query);
+    }
   }
   search(query: string): Set<string> {
     if (!this.ready) throw Error("検索の準備が終わっていません。");
     const terms = normalizeSearch(query).trim().split(/\s+/u).filter(Boolean);
+    const key = JSON.stringify(terms);
+    const cached = this.queries.get(key);
+    if (cached) {
+      this.queries.delete(key);
+      this.queries.set(key, cached);
+      return new Set(cached.ids);
+    }
     const found = new Set<string>();
     for (const [id, document] of this.documents)
-      if (terms.every((term) => document.normalized.includes(term)))
-        found.add(id);
+      if (matches(document.normalized, terms)) found.add(id);
+    // Bound memory even for queries matching the entire library. Incremental
+    // writes repair cached matches above instead of rescanning every document.
+    if (terms.length && found.size <= 5000) {
+      if (this.queries.size >= 16)
+        this.queries.delete(this.queries.keys().next().value!);
+      this.queries.set(key, { terms, ids: new Set(found) });
+    }
     return found;
   }
 }

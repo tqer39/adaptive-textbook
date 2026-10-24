@@ -1,0 +1,170 @@
+import { z } from "zod";
+import { parseFeed } from "./feed-parser";
+import { mergeFeed } from "./feed-store";
+
+const timestamp = z.number().int().nonnegative();
+const snapshotMeta = z.object({
+  id: z.string().uuid(),
+  feedUrl: z.string().url().max(2048),
+  url: z.string().url().max(2048),
+  fetchedAt: timestamp,
+  parts: z.number().int().min(0).max(125),
+  size: timestamp.max(8_000_000),
+});
+const stateSchema = z.object({
+  available: z.boolean(),
+  account: z.string().min(20).max(100),
+  revision: timestamp,
+  interval: z.union([
+    z.literal(0),
+    z.literal(15),
+    z.literal(30),
+    z.literal(60),
+  ]),
+  hosts: z.array(z.string().max(253)).max(50),
+  feeds: z
+    .array(
+      z.object({
+        url: z.string().url().max(2048),
+        nextAt: timestamp,
+        lastSuccess: timestamp.nullable(),
+        failures: timestamp.max(8),
+        error: z.string().max(100),
+      }),
+    )
+    .max(50),
+  pending: z.array(snapshotMeta).max(100),
+  bytes: timestamp.max(20_000_000),
+  blocked: z.boolean(),
+});
+export type CloudCollectionState = z.infer<typeof stateSchema>;
+const errors: Record<string, string> = {
+  "collection-conflict":
+    "別の画面で設定が変わりました。クラウドの状態を確認してから再試行してください。",
+  "collection-account-changed":
+    "ログイン中のアカウントが変わりました。画面を再読み込みしてください。",
+  "collection-unconfigured": "クラウド収集はまだ有効になっていません。",
+  "feed-host-unsupported":
+    "クラウド収集に未対応の配信元が含まれています。対応先を確認してください。",
+  "collection-capacity":
+    "クラウドの保存上限に達しました。取得済みの記事を取り込んでください。",
+  "csrf-invalid": "ログインの状態を確認してから再試行してください。",
+};
+export class CloudCollectionClient {
+  constructor(
+    private send: typeof fetch = (input, init) => fetch(input, init),
+  ) {}
+  private async request(
+    path: string,
+    options: {
+      account?: string;
+      body?: unknown;
+      method?: string;
+      csrf?: string;
+    } = {},
+  ) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 16000);
+    try {
+      const response = await this.send(path, {
+        method: options.method ?? "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+        redirect: "error",
+        signal: controller.signal,
+        headers: {
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...(options.account
+            ? { "X-Collection-Account": options.account }
+            : {}),
+          ...(options.csrf ? { "X-CSRF-Token": options.csrf } : {}),
+        },
+        body: options.body ? JSON.stringify(options.body) : undefined,
+      });
+      if (response.status === 401)
+        throw Error("クラウド収集にはログインが必要です。");
+      if (response.status === 404)
+        throw Error(
+          "この環境ではクラウド収集を利用できません。現在は画面表示中の更新のみです。",
+        );
+      if (response.status === 503)
+        throw Error(
+          "クラウドに接続できません。収集の稼働状態を確認できないため、再試行してください。",
+        );
+      if (!response.headers.get("Content-Type")?.includes("application/json"))
+        throw Error("クラウド収集サーバーに接続できません。");
+      const value = await response.json();
+      if (!response.ok)
+        throw Error(
+          errors[value?.status] ??
+            "クラウド収集の処理に失敗しました。保存済みの記事は保持しています。",
+        );
+      if (options.account && value.account && value.account !== options.account)
+        throw Error(errors["collection-account-changed"]);
+      return value;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  async status() {
+    return stateSchema.parse(await this.request("/api/collection"));
+  }
+  private async csrf() {
+    const result = z
+      .object({ csrfToken: z.string().min(20).max(100) })
+      .parse(await this.request("/api/session"));
+    return result.csrfToken;
+  }
+  async configure(
+    state: CloudCollectionState,
+    urls: string[],
+    interval: 0 | 15 | 30 | 60,
+  ) {
+    const csrf = await this.csrf();
+    return stateSchema.parse(
+      await this.request("/api/collection", {
+        method: "PUT",
+        account: state.account,
+        csrf,
+        body: { expectedRevision: state.revision, urls, interval },
+      }),
+    );
+  }
+  async importPending(db: IDBDatabase, state: CloudCollectionState) {
+    if (!state.pending.length) return 0;
+    // At most five documents per pass; failed saves/ACKs leave the server copy.
+    const csrf = await this.csrf();
+    let count = 0;
+    const ids: string[] = [];
+    for (const meta of state.pending.slice(0, 5)) {
+      const result = snapshotMeta
+        .extend({
+          account: z.literal(state.account),
+          xml: z.string().max(2_000_000),
+        })
+        .parse(
+          await this.request(`/api/collection/snapshots/${meta.id}`, {
+            account: state.account,
+          }),
+        );
+      if (result.id !== meta.id || result.feedUrl !== meta.feedUrl)
+        throw Error("取得結果の配信元を確認できませんでした。");
+      const parsed = parseFeed(result.xml, result.feedUrl, result.url);
+      const fetchedAt = new Date(result.fetchedAt).toISOString();
+      parsed.feed.fetchedAt = fetchedAt;
+      parsed.articles.forEach((article) => {
+        article.fetchedAt = fetchedAt;
+      });
+      await mergeFeed(db, parsed.feed, parsed.articles);
+      ids.push(meta.id);
+      count++;
+    }
+    await this.request("/api/collection/ack", {
+      method: "POST",
+      account: state.account,
+      csrf,
+      body: { ids },
+    });
+    return count;
+  }
+}

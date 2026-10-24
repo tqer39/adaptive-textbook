@@ -190,7 +190,11 @@ export function mergeFeed(
           tx.abort();
           return;
         }
-        feedStore.put(feed);
+        if (
+          !existing.result ||
+          Date.parse(existing.result.fetchedAt) <= Date.parse(feed.fetchedAt)
+        )
+          feedStore.put(feed);
       };
     };
     const store = tx.objectStore("articles");
@@ -199,16 +203,19 @@ export function mergeFeed(
       request.onsuccess = () => {
         const old = request.result as FeedArticle | undefined;
         // A saved article is a stable local copy, even when its feed changes.
-        const next = old?.saved
-          ? old
-          : {
-              ...article,
-              read: old?.read ?? false,
-              content: old?.content,
-              contentError: old?.contentError,
-              translation: old?.translation,
-              manualTags: old?.manualTags,
-            };
+        const next =
+          old &&
+          (old.saved ||
+            Date.parse(old.fetchedAt) > Date.parse(article.fetchedAt))
+            ? old
+            : {
+                ...article,
+                read: old?.read ?? false,
+                content: old?.content,
+                contentError: old?.contentError,
+                translation: old?.translation,
+                manualTags: old?.manualTags,
+              };
         store.put({ ...next, tags: classifyArticle(next) });
       };
     }

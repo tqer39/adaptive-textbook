@@ -87,3 +87,23 @@ test("incremental updates replace original and translated search terms", async (
   index.invalidate();
   expect(() => index.search("after")).toThrow();
 });
+
+test("repeated queries change after writes, preserve returned snapshots and discard removed documents", async () => {
+  const index = new ArticleSearch();
+  const a = article("one", "before"),
+    b = article("two", "after");
+  await index.prepare([a, b]);
+  const previous = index.search("before");
+  expect([...index.search("after")]).toEqual(["two"]);
+  index.update({ ...a, body: "after" });
+  index.update({ ...b, body: "before" });
+  expect([...previous]).toEqual(["one"]);
+  expect([...index.search("before")]).toEqual(["two"]);
+  expect([...index.search("after")]).toEqual(["one"]);
+  const returned = index.search("before");
+  returned.clear();
+  expect([...index.search("before")]).toEqual(["two"]);
+  await index.prepare([{ ...a, body: "after" }]);
+  expect([...index.search("before")]).toEqual([]);
+  expect([...index.search("after")]).toEqual(["one"]);
+});
