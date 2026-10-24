@@ -1,8 +1,10 @@
-# 積み木テキスト
+# Quilna（クイルナ）
 
 [English](README.md) | [日本語](README.ja.md)
 
-技術的なリポジトリ名は adaptive-textbook です。現在のアプリと教材本文は日本語です。
+Quilna（クイルナ）は、人間が情報を選び、考え、自分の教科書を編むためのサービスです。
+リポジトリ名は `quilna`、正式ドメインは [quilna.page](https://quilna.page) です。
+今回の改名ではドメイン取得・DNS接続・本番公開は行っていません。現在のアプリと教材本文は日本語です。
 
 現在はブラウザ版に集中し、プロジェクトオーナーが明示的に「使いやすい」と判断するまで改善を続けます。
 ネイティブ版の機能開発は保留しています。[開発順序と受け入れ条件](docs/product-development.ja.md)を参照してください。
@@ -16,7 +18,8 @@ SwiftUIのmacOS／iOS最小アプリを`apple/`、Go製の開発ハーネスを`
 [実接続の結果と再現手順](docs/codex-live-validation.ja.md)を参照してください。製品の教材生成とは別の接続です。
 以下は引き続き利用できる既存Web試作の説明です。
 
-[本人限定Dev](https://tsumiki-text.tqer39.workers.dev)を公開済みです。Google認証は設定準備中です。
+旧名称の本人限定Devは公開済みで、Google認証は設定準備中です。
+[既存の公開記録](docs/dev-publication.ja.md)を参照してください。
 本番domainの購入・公開とLLM実送信はこの作業に含めません。
 [公開前の最小準備](docs/workers-byok.ja.md)を参照してください。
 

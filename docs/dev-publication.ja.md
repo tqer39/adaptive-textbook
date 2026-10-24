@@ -2,7 +2,9 @@
 
 [English](dev-publication.md) | [日本語](dev-publication.ja.md)
 
-[積み木テキストDev](https://tsumiki-text.tqer39.workers.dev)は公開済みです。
+現在のサービス名はQuilna（クイルナ）、正式ドメインは [quilna.page](https://quilna.page) です。
+ドメイン取得・DNS接続・公開環境の移行は未実施です。
+以下は旧名称で公開した本人限定Devの記録です。旧URLは `https://tsumiki-text.tqer39.workers.dev` です。
 Google認証は設定準備中のため、ログインボタンは無効です。実ログイン成功とは扱いません。
 固定CAA教材の試作で、教材生成・クラウド履歴同期・実LLM送信は未実装/無効です。
 
@@ -49,8 +51,10 @@ Freeの実CPU/共有枠/費用やbackup復旧は、この試験だけでは保�
 Google Web clientのscopeはopenid emailだけ。profile/Drive/Gmail/offline grantを要求しません。
 本人だけをtest userにし、アプリでも署名・nonce・verified emailを照合します。
 
+ドメイン接続後は、APP_ORIGINとGoogleのリダイレクトURIを同時に更新します。
+
 ```text
-https://tsumiki-text.tqer39.workers.dev/api/auth/callback/google
+https://quilna.page/api/auth/callback/google
 ```
 
 GOOGLE_CLIENT_IDは公開変数、GOOGLE_CLIENT_SECRETは専用clientのSecretです。

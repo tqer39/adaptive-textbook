@@ -82,7 +82,7 @@ let planStart = resume?.planStart ?? index;
 const root = document.querySelector<HTMLDivElement>("#app")!;
 const header = el("header");
 header.append(
-  el("a", "積み木テキスト", "brand"),
+  el("a", "Quilna", "brand"),
   el("span", "SRE のための、小さな教科書", "muted"),
 );
 const byok = byokSettings();

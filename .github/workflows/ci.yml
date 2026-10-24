@@ -64,8 +64,8 @@ jobs:
       - run: swift build --package-path apple --scratch-path .local-state/swift-build
       - name: Build iOS Simulator app without signing
         run: >-
-          xcodebuild -project apple/TsumikiText.xcodeproj
-          -scheme TsumikiText-iOS -sdk iphonesimulator
+          xcodebuild -project apple/Quilna.xcodeproj
+          -scheme Quilna-iOS -sdk iphonesimulator
           -destination 'generic/platform=iOS Simulator'
           -derivedDataPath .local-state/ios-build
           CODE_SIGNING_ALLOWED=NO build
