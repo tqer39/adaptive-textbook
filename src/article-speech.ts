@@ -69,9 +69,15 @@ export class ArticleSpeech {
           "読み上げに失敗しました。音声設定を確認して再試行してください。";
         this.changed();
       };
-      this.state = "speaking";
-      this.message = "読み上げ中";
+      // An end event queued before pause may arrive afterward. Keep the user's
+      // pause while queuing subsequent chunks; only explicit start clears it.
+      const paused = index > 1 && this.state === "paused";
+      this.state = paused ? "paused" : "speaking";
+      this.message = paused ? "一時停止中" : "読み上げ中";
       try {
+        // cancel() removes queued speech but preserves the engine's paused flag.
+        // Resume only on explicit start, after the old queue has been cancelled.
+        if (index === 1 && speechSynthesis.paused) speechSynthesis.resume();
         speechSynthesis.speak(utterance);
       } catch {
         this.stop(false);

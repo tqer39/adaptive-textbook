@@ -73,6 +73,8 @@ Machine translation can be inaccurate. External translation services require a s
 
 **表示中の本文を読み上げ** speaks the displayed original or translation using a matching on-device voice.
 Pause, resume, stop and speed controls are provided. Leaving an article or changing language/view stops speech.
+Starting again after a paused stop, article navigation or speed change clears the speech engine's paused state after cancelling the previous queue, so the new reading can start without replaying cancelled text.
+If a chunk finishes just before pause, its delayed completion event preserves the paused controls; one resume action continues the next chunk.
 Missing APIs, missing local voices and speech failures are shown explicitly; network voices are not used.
 The OS may require installing a voice. Translation and speech controls are covered with deterministic browser test doubles; these do not establish translation quality or audible output on every host.
 See the [Language Detector API](https://developer.chrome.com/docs/ai/language-detection), [Translator API](https://developer.chrome.com/docs/ai/translator-api) and [SpeechSynthesis](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis).
